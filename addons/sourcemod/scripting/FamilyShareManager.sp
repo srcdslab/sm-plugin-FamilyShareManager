@@ -1,21 +1,11 @@
-#include <socket>
+#include <utilshelper>
+#include <ripext>
 
-#define MAX_STEAMID_LENGTH 21
-#define MAX_COMMUNITYID_LENGTH 18
-
-new Handle:g_hCvar_HostPath = INVALID_HANDLE;
-new Handle:g_hCvar_APIKey = INVALID_HANDLE;
 new Handle:g_hCvar_Reject = INVALID_HANDLE;
 new Handle:g_hCvar_RejectDuration = INVALID_HANDLE;
 new Handle:g_hCvar_RejectMessage = INVALID_HANDLE;
 new Handle:g_hCvar_Whitelist = INVALID_HANDLE;
 new Handle:g_hCvar_IgnoreAdmins = INVALID_HANDLE;
-
-// The maximum returned length of 174 occurs when an unauthorized key is provided
-// Header length really shouldn't be 900 characters long. But just in case...
-new String:g_sAPIBuffer[MAXPLAYERS + 1][1024];
-new Handle:g_hAPISocket[MAXPLAYERS + 1];
-new String:g_sHostPath[PLATFORM_MAX_PATH];
 
 new String:g_sWhitelist[PLATFORM_MAX_PATH];
 new Handle:g_hWhitelistTrie = INVALID_HANDLE;
@@ -23,21 +13,27 @@ new bool:g_bParsed = false;
 
 int g_iAppID = -1;
 
+bool g_bLateLoad = false;
+
 public Plugin:myinfo =
 {
     name = "Family Share Manager",
     author = "Sidezz (+bonbon, 11530, maxime1907)",
     description = "Whitelist or ban family shared accounts",
-    version = "1.4.3",
+    version = "1.5.0",
     url = ""
 };
 
-public OnPluginStart()
+public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
+{
+   g_bLateLoad = late;
+   return APLRes_Success;
+}
+
+public void OnPluginStart()
 {
     // Get one here
     // https://steamcommunity.com/dev
-    g_hCvar_APIKey = CreateConVar("sm_familyshare_apikey", "XXXXXXXXXXXXXXXXXXXX", "Steam developer web API key", FCVAR_PROTECTED);
-    g_hCvar_HostPath = CreateConVar("sm_familyshare_hostpath", "api.steampowered.com", "Steam developer web host endpoint", FCVAR_NOTIFY);
     g_hCvar_Reject = CreateConVar("sm_familyshare_reject", "1", "2 = ban, 1 = kick, 0 = ignore", FCVAR_NOTIFY);
     g_hCvar_RejectDuration = CreateConVar("sm_familyshare_reject_duration", "10", "How much time is the player banned", FCVAR_NOTIFY);
     g_hCvar_RejectMessage = CreateConVar("sm_familyshare_reject_message", "Family sharing is disabled on this server.", "Message to display in sourcebans/on ban/on kick", FCVAR_NOTIFY);
@@ -63,14 +59,21 @@ public OnPluginStart()
 
     AutoExecConfig(true);
 
-    GetConVarString(g_hCvar_HostPath, g_sHostPath, sizeof(g_sHostPath));
-
     parseList();
 
     RegAdminCmd("sm_reloadlist", command_reloadWhiteList, ADMFLAG_ROOT, "Reload the whitelist");
     RegAdminCmd("sm_addtolist", command_addToList, ADMFLAG_ROOT, "Add a player to the whitelist");
     RegAdminCmd("sm_removefromlist", command_removeFromList, ADMFLAG_ROOT, "Remove a player from the whitelist");
     RegAdminCmd("sm_displaylist", command_displayList, ADMFLAG_ROOT, "View current whitelist");
+
+    if (g_bLateLoad)
+    {
+        for (int i = 1; i < MaxClients; i++)
+        {
+            if (IsClientInGame(i) && IsClientAuthorized(i))
+                OnClientPostAdminCheck(i);
+        }
+    }
 }
 
 public Action:command_removeFromList(client, args)
@@ -267,6 +270,7 @@ public playerMenuHandle(Handle:playerMenu, MenuAction:action, client, menuItem)
 
         WriteFileLine(hFile, steamid);
         PrintToChat(client, "[Family Share Manager] Successfully added %s (%N) to the list.", steamid, target);
+        LogMessage("[Family Share Manager] Successfully added %s (%N) to the list.", steamid, target);
         CloseHandle(hFile);
         parseList();
         return;
@@ -309,11 +313,10 @@ public Action:command_reloadWhiteList(client, args)
     return Plugin_Handled;
 }
 
-parseList(bool:rebuild = false, client = 0)
+stock void parseList(bool:rebuild = false, client = 0)
 {
     decl String:auth[32];
     new Handle:hFile = OpenFile(g_sWhitelist, "a+");
-    LogMessage("Begin parseList()");
 
     while(!IsEndOfFile(hFile) && ReadFileLine(hFile, auth, sizeof(auth)))
     {
@@ -329,16 +332,17 @@ parseList(bool:rebuild = false, client = 0)
         }
     }
 
-    LogMessage("End parseList()");
-    if(rebuild && client) PrintToChat(client, "[Family Share Manager] Rebuild complete!");
+    if (rebuild && client)
+        PrintToChat(client, "[Family Share Manager] Rebuild complete!");
+
     g_bParsed = true;
     CloseHandle(hFile);
 }
 
-public OnClientPostAdminCheck(client)
+public void OnClientPostAdminCheck(int client)
 {
     new bool:whiteListed = false;
-    if(g_bParsed)
+    if (g_bParsed)
     {
         decl String:auth[2][64];
         GetClientAuthId(client, AuthId_Steam2, auth[0], sizeof(auth[]));
@@ -350,166 +354,68 @@ public OnClientPostAdminCheck(client)
         }
     }
 
-    if(CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC) && GetConVarInt(g_hCvar_IgnoreAdmins) > 0)
+    if (CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC) && GetConVarInt(g_hCvar_IgnoreAdmins) > 0)
     {
         return;
     }
 
-    if(!IsFakeClient(client))
+    if (!IsFakeClient(client))
         checkFamilySharing(client);
 }
 
-public OnClientDisconnect(client)
+stock void checkFamilySharing(int client)
 {
-    if (g_hAPISocket[client] != INVALID_HANDLE)
-    {
-        CloseHandle(g_hAPISocket[client]);
-        g_hAPISocket[client] = INVALID_HANDLE;
-    }
+	char sSteam64ID[32];
+	GetClientAuthId(client, AuthId_SteamID64, sSteam64ID, sizeof(sSteam64ID));
+
+	char sSteamAPIEndpoint[255];
+	GetSteamAPIEndpoint(sSteamAPIEndpoint, sizeof(sSteamAPIEndpoint));
+
+	char sSteamAPIKey[64];
+	GetSteamAPIKey(sSteamAPIKey, sizeof(sSteamAPIKey));
+
+	char sRequest[256];
+	FormatEx(sRequest, sizeof(sRequest), "http://%s/IPlayerService/IsPlayingSharedGame/v0001/?key=%s&steamid=%s&appid_playing=%d&format=json", sSteamAPIEndpoint, sSteamAPIKey, sSteam64ID, g_iAppID);
+
+	HTTPRequest request = new HTTPRequest(sRequest);
+
+	request.Get(OnFamilyShareReceived, client);
 }
 
-public OnSocketConnected(Handle:socket, any:userid)
+stock void OnFamilyShareReceived(HTTPResponse response, any client)
 {
-    new client = GetClientOfUserId(userid);
-
-    if (!client)
-    {
-        CloseHandle(socket);
+    if (response.Status != HTTPStatus_OK)
         return;
-    }
 
-    decl String:apikey[64];
-    decl String:get[256];
-    decl String:request[512];
-    decl String:steamid[MAX_STEAMID_LENGTH];
-    decl String:steamid64[MAX_COMMUNITYID_LENGTH];
+    // Indicate that the response contains a JSON object
+    JSONObject responseData = view_as<JSONObject>(response.Data);
 
-    GetConVarString(g_hCvar_APIKey, apikey, sizeof(apikey));
-    GetClientAuthId(client, AuthId_Steam2, steamid, sizeof(steamid));
-    GetCommunityIDString(steamid, steamid64, sizeof(steamid64));
+    if (!responseData.HasKey("lender_steamid"))
+        return;
 
-    Format(get, sizeof(get),
-           "%s/IPlayerService/IsPlayingSharedGame/v0001/?key=%s&steamid=%s&appid_playing=%d&format=json",
-           g_sHostPath, apikey, steamid64, g_iAppID);
+    int lenderSteamid = responseData.GetInt("lender_steamid");
 
-    Format(request, sizeof(request),
-           "GET http://%s HTTP/1.1\r\nHost: %s\r\nConnection: close\r\nAccept-Encoding: *\r\n\r\n",
-           get, g_sHostPath);
+    char rejectMessage[255];
+    GetConVarString(g_hCvar_RejectMessage, rejectMessage, sizeof(rejectMessage));
 
-    SocketSend(socket, request);
-}
+    if (lenderSteamid == 0)
+        return;
 
-public OnSocketReceive(Handle:socket, String:receiveData[], dataSize, any:userid)
-{
-    new client = GetClientOfUserId(userid);
+    int iReject = GetConVarInt(g_hCvar_Reject);
 
-    if (client > 0)
+    switch (iReject)
     {
-        StrCat(g_sAPIBuffer[client], 1024, receiveData);
-    
-        if (StrContains(receiveData, "404 Not Found", false) != -1)
+        case (2):
         {
-            OnSocketError(socket, 404, 404, userid);
+            LogMessage("Banning %L for %d minutes (Family share)", client, GetConVarInt(g_hCvar_RejectDuration));
+            ServerCommand("sm_ban #%i %d \"%s\"", GetClientUserId(client), GetConVarInt(g_hCvar_RejectDuration), rejectMessage);
         }
-
-        else if (StrContains(receiveData, "Unauthorized", false) != -1)
+        case (1):
         {
-            OnSocketError(socket, 403, 403, userid);
+            LogMessage("Kicking %L (Family share)", client);
+            ServerCommand("sm_kick #%i \"%s\"", GetClientUserId(client), rejectMessage);
         }
     }
-}
-
-public OnSocketError(Handle:socket, const errorType, const errorNum, any:userid)
-{
-    new client = GetClientOfUserId(userid);
-    if (client > 0)
-    {
-        g_hAPISocket[client] = INVALID_HANDLE;
-        LogError("Error checking family sharing for %L -- error %d (%d)", client, errorType, errorNum);
-    }
-
-    CloseHandle(socket);
-}
-
-public OnSocketDisconnected(Handle:socket, any:userid)
-{
-    new client = GetClientOfUserId(userid);
-
-    if (client > 0)
-    {
-        g_hAPISocket[client] = INVALID_HANDLE;
-        ReplaceString(g_sAPIBuffer[client], 1024, " ", "");
-        ReplaceString(g_sAPIBuffer[client], 1024, "\t", "");
-
-        new index = StrContains(g_sAPIBuffer[client], "\"lender_steamid\":", false);
-
-        if (index == -1)
-        {
-            LogError("unexpected error returned in request - %s", g_sAPIBuffer[client]);
-        }
-
-        else
-        {
-            index += strlen("\"lender_steamid\":");
-
-            decl String:rejectMessage[128];
-            GetConVarString(g_hCvar_RejectMessage, rejectMessage, sizeof(rejectMessage));
-
-            if (!(g_sAPIBuffer[client][index + 1] != '0' || g_sAPIBuffer[client][index + 2] != '"'))
-                return;
-
-            new iReject = GetConVarInt(g_hCvar_Reject);
-
-            if (iReject == 2)
-            {
-                LogMessage("Banning %L for 10 minutes (Family share)", client);
-                ServerCommand("sm_ban #%i %d \"%s\"", userid, GetConVarInt(g_hCvar_RejectDuration), rejectMessage);
-            }
-            else if (iReject == 1)
-            {
-                LogMessage("Kicking %L (Family share)", client);
-                ServerCommand("sm_kick #%i \"%s\"", userid, rejectMessage);
-            }
-        }
-    }
-
-    CloseHandle(socket);
-}
-
-Action:checkFamilySharing(client)
-{
-    new Handle:socket = SocketCreate(SOCKET_TCP, OnSocketError);
-
-    g_hAPISocket[client] = socket;
-    g_sAPIBuffer[client][0] = '\0';
-
-    SocketSetArg(socket, GetClientUserId(client));
-    SocketConnect(socket, OnSocketConnected, OnSocketReceive, OnSocketDisconnected, g_sHostPath, 80);
-}
-
-// Credit to 11530
-// https://forums.alliedmods.net/showthread.php?t=183443&highlight=communityid
-stock bool:GetCommunityIDString(const String:SteamID[], String:CommunityID[], const CommunityIDSize)
-{
-    decl String:SteamIDParts[3][11];
-    new const String:Identifier[] = "76561197960265728";
-    
-    if ((CommunityIDSize < 1) || (ExplodeString(SteamID, ":", SteamIDParts, sizeof(SteamIDParts), sizeof(SteamIDParts[])) != 3))
-    {
-        CommunityID[0] = '\0';
-        return false;
-    }
-
-    new Current, CarryOver = (SteamIDParts[1][0] == '1');
-    for (new i = (CommunityIDSize - 2), j = (strlen(SteamIDParts[2]) - 1), k = (strlen(Identifier) - 1); i >= 0; i--, j--, k--)
-    {
-        Current = (j >= 0 ? (2 * (SteamIDParts[2][j] - '0')) : 0) + CarryOver + (k >= 0 ? ((Identifier[k] - '0') * 1) : 0);
-        CarryOver = Current / 10;
-        CommunityID[i] = (Current % 10) + '0';
-    }
-
-    CommunityID[CommunityIDSize - 1] = '\0';
-    return true;
 }
 
 // Credit to Dr. McKay
@@ -531,4 +437,4 @@ stock GetAppID() {
 
     CloseHandle(file);
     return -1;
-} 
+}
