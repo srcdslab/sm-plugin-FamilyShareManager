@@ -1,28 +1,31 @@
+#pragma newdecls required
+
 #include <utilshelper>
 #include <ripext>
 
-new Handle:g_hCvar_Reject = INVALID_HANDLE;
-new Handle:g_hCvar_RejectDuration = INVALID_HANDLE;
-new Handle:g_hCvar_RejectMessage = INVALID_HANDLE;
-new Handle:g_hCvar_Whitelist = INVALID_HANDLE;
-new Handle:g_hCvar_IgnoreAdmins = INVALID_HANDLE;
+Handle g_hCvar_Reject = INVALID_HANDLE;
+Handle g_hCvar_RejectDuration = INVALID_HANDLE;
+Handle g_hCvar_RejectMessage = INVALID_HANDLE;
+Handle g_hCvar_Whitelist = INVALID_HANDLE;
+Handle g_hCvar_IgnoreAdmins = INVALID_HANDLE;
+Handle g_hWhitelistTrie = INVALID_HANDLE;
 
-new String:g_sWhitelist[PLATFORM_MAX_PATH];
-new Handle:g_hWhitelistTrie = INVALID_HANDLE;
-new bool:g_bParsed = false;
+char g_sWhitelist[PLATFORM_MAX_PATH];
+
+bool g_bParsed = false;
 
 int g_iAppID = -1;
 
 bool g_bLateLoad = false;
 
-public Plugin:myinfo =
+public Plugin myinfo =
 {
     name = "Family Share Manager",
-    author = "Sidezz (+bonbon, 11530, maxime1907)",
+    author = "Sidezz (+bonbon, 11530, maxime1907, .Rushaway)",
     description = "Whitelist or ban family shared accounts",
-    version = "1.5.0",
+    version = "1.6.0",
     url = ""
-};
+}
 
 public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
 {
@@ -42,14 +45,12 @@ public void OnPluginStart()
 
     g_iAppID = GetAppID();
     if (g_iAppID <= -1)
-    {
         SetFailState("Could not determine the game app id (cstrike/steam.inf)");
-    }
 
     g_bParsed = false;
     g_hWhitelistTrie = CreateTrie();
 
-    decl String:file[PLATFORM_MAX_PATH], String:filePath[PLATFORM_MAX_PATH];
+    char file[PLATFORM_MAX_PATH], filePath[PLATFORM_MAX_PATH];
     GetConVarString(g_hCvar_Whitelist, file, sizeof(file));
     BuildPath(Path_SM, g_sWhitelist, sizeof(g_sWhitelist), "configs/%s", file);
     LogMessage("Built Filepath to: %s", g_sWhitelist);
@@ -76,9 +77,9 @@ public void OnPluginStart()
     }
 }
 
-public Action:command_removeFromList(client, args)
+public Action command_removeFromList(int client, int args)
 {
-    new Handle:hFile = OpenFile(g_sWhitelist, "a+");
+    Handle hFile = OpenFile(g_sWhitelist, "a+");
 
     if(hFile == INVALID_HANDLE)
     {
@@ -94,14 +95,14 @@ public Action:command_removeFromList(client, args)
         return Plugin_Handled;
     }
 
-    decl String:steamid[32], String:playerSteam[32];
+    char steamid[32], playerSteam[32];
     GetCmdArgString(playerSteam, sizeof(playerSteam));
 
     StripQuotes(playerSteam);
     TrimString(playerSteam);
   
-    new bool:found = false;
-    new Handle:fileArray = CreateArray(32);
+    bool found = false;
+    Handle fileArray = CreateArray(32);
 
     while(!IsEndOfFile(hFile) && ReadFileLine(hFile, steamid, sizeof(steamid)))
     {
@@ -129,7 +130,7 @@ public Action:command_removeFromList(client, args)
     if(found)
     {
         DeleteFile(g_sWhitelist); //I hate this, scares the shit out of me.
-        new Handle:newFile = OpenFile(g_sWhitelist, "a+");
+        Handle newFile = OpenFile(g_sWhitelist, "a+");
 
         if(newFile == INVALID_HANDLE)
         {
@@ -142,9 +143,9 @@ public Action:command_removeFromList(client, args)
         
         LogMessage("Begin rewrite of list..");
 
-        for(new i = 0; i < GetArraySize(fileArray); i++)
+        for(int i = 0; i < GetArraySize(fileArray); i++)
         {
-            decl String:writeLine[32];
+            char writeLine[32];
             GetArrayString(fileArray, i, writeLine, sizeof(writeLine));
             WriteFileLine(newFile, writeLine);
             LogMessage("Wrote %s to list.", writeLine);
@@ -159,9 +160,9 @@ public Action:command_removeFromList(client, args)
     return Plugin_Handled;
 }
 
-public Action:command_addToList(client, args)
+public Action command_addToList(int client, int args)
 {
-    new Handle:hFile = OpenFile(g_sWhitelist, "a+");
+    Handle hFile = OpenFile(g_sWhitelist, "a+");
     
     //Argument Count:
     switch(args)
@@ -169,14 +170,14 @@ public Action:command_addToList(client, args)
         //Create Player List:
         case 0:
         {
-            new Handle:playersMenu = CreateMenu(playerMenuHandle);
-            for(new i = 1; i <= MaxClients; i++)
+            Handle playersMenu = CreateMenu(playerMenuHandle);
+            for(int i = 1; i <= MaxClients; i++)
             {
                 if(IsClientAuthorized(i) && i != client)
                 {
                     SetMenuTitle(playersMenu, "Viewing all players...");
 
-                    decl String:formatItem[2][32];
+                    char formatItem[2][32];
                     Format(formatItem[0], sizeof(formatItem[]), "%i", GetClientUserId(i));
                     Format(formatItem[1], sizeof(formatItem[]), "%N", i);
 
@@ -198,7 +199,7 @@ public Action:command_addToList(client, args)
         //Directly write Steam ID:
         default:
         {
-            decl String:steamid[32];
+            char steamid[32];
             GetCmdArgString(steamid, sizeof(steamid));
 
             StripQuotes(steamid);
@@ -229,15 +230,15 @@ public Action:command_addToList(client, args)
     return Plugin_Handled;
 }
 
-public playerMenuHandle(Handle:playerMenu, MenuAction:action, client, menuItem)
+public int playerMenuHandle(Menu playerMenu, MenuAction action, int client, int menuItem)
 {
     if(action == MenuAction_Select) 
     {   
         //Should be our Client's User ID.
-        decl String:menuItems[32]; 
+        char menuItems[32]; 
         GetMenuItem(playerMenu, menuItem, menuItems, sizeof(menuItems));
 
-        new target = GetClientOfUserId(StringToInt(menuItems));
+        int target = GetClientOfUserId(StringToInt(menuItems));
         
         //Invalid UserID/Client Index:
         if(target == 0)
@@ -247,7 +248,7 @@ public playerMenuHandle(Handle:playerMenu, MenuAction:action, client, menuItem)
             return;
         }
 
-        decl String:steamid[32];
+        char steamid[32];
         GetClientAuthId(target, AuthId_Steam2, steamid, sizeof(steamid));
 
         StripQuotes(steamid);
@@ -259,7 +260,7 @@ public playerMenuHandle(Handle:playerMenu, MenuAction:action, client, menuItem)
             return;
         }
 
-        new Handle:hFile = OpenFile(g_sWhitelist, "a+");
+        Handle hFile = OpenFile(g_sWhitelist, "a+");
         if(hFile == INVALID_HANDLE)
         {
             LogError("[Family Share Manager] Critical Error: hFile is Invalid. --> playerMenuHandle");
@@ -282,10 +283,10 @@ public playerMenuHandle(Handle:playerMenu, MenuAction:action, client, menuItem)
     }
 }
 
-public Action:command_displayList(client, args)
+public Action command_displayList(int client, int args)
 {
-    decl String:auth[32];
-    new Handle:hFile = OpenFile(g_sWhitelist, "a+");
+    char auth[32];
+    Handle hFile = OpenFile(g_sWhitelist, "a+");
 
     while(!IsEndOfFile(hFile) && ReadFileLine(hFile, auth, sizeof(auth)))
     {
@@ -306,17 +307,17 @@ public Action:command_displayList(client, args)
     return Plugin_Handled;
 }
 
-public Action:command_reloadWhiteList(client, args)
+public Action command_reloadWhiteList(int client, int args)
 {
     PrintToChat(client, "[Family Share Manager] Rebuilding whitelist...");
     parseList(true, client);
     return Plugin_Handled;
 }
 
-stock void parseList(bool:rebuild = false, client = 0)
+stock void parseList(bool rebuild = false, int client = 0)
 {
-    decl String:auth[32];
-    new Handle:hFile = OpenFile(g_sWhitelist, "a+");
+    char auth[32];
+    Handle hFile = OpenFile(g_sWhitelist, "a+");
 
     while(!IsEndOfFile(hFile) && ReadFileLine(hFile, auth, sizeof(auth)))
     {
@@ -341,10 +342,10 @@ stock void parseList(bool:rebuild = false, client = 0)
 
 public void OnClientPostAdminCheck(int client)
 {
-    new bool:whiteListed = false;
+    bool whiteListed = false;
     if (g_bParsed)
     {
-        decl String:auth[2][64];
+        char auth[2][64];
         GetClientAuthId(client, AuthId_Steam2, auth[0], sizeof(auth[]));
         whiteListed = GetTrieString(g_hWhitelistTrie, auth[0], auth[1], sizeof(auth[]));
         if(whiteListed)
@@ -420,13 +421,13 @@ stock void OnFamilyShareReceived(HTTPResponse response, any client)
 
 // Credit to Dr. McKay
 // https://forums.alliedmods.net/showthread.php?t=233257
-stock GetAppID() {
-    new Handle:file = OpenFile("steam.inf", "r");
+stock int GetAppID() {
+    Handle file = OpenFile("steam.inf", "r");
     if(file == INVALID_HANDLE) {
         return -1;
     }
 
-    decl String:line[128], String:parts[2][64];
+    char line[128], parts[2][64];
     while(ReadFileLine(file, line, sizeof(line))) {
         ExplodeString(line, "=", parts, sizeof(parts), sizeof(parts[]));
         if(StrEqual(parts[0], "appID")) {
