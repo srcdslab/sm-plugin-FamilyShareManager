@@ -2,6 +2,7 @@
 
 #include <utilshelper>
 #include <ripext>
+#tryinclude <SteamWorks>
 
 Handle g_hCvar_Reject = INVALID_HANDLE;
 Handle g_hCvar_RejectDuration = INVALID_HANDLE;
@@ -9,6 +10,7 @@ Handle g_hCvar_RejectMessage = INVALID_HANDLE;
 Handle g_hCvar_Whitelist = INVALID_HANDLE;
 Handle g_hCvar_IgnoreAdmins = INVALID_HANDLE;
 Handle g_hWhitelistTrie = INVALID_HANDLE;
+Handle g_hCvar_Method = INVALID_HANDLE;
 
 char g_sWhitelist[PLATFORM_MAX_PATH];
 
@@ -23,7 +25,7 @@ public Plugin myinfo =
     name = "Family Share Manager",
     author = "Sidezz (+bonbon, 11530, maxime1907, .Rushaway)",
     description = "Whitelist or ban family shared accounts",
-    version = "1.6.0",
+    version = "1.7.0",
     url = ""
 }
 
@@ -42,6 +44,7 @@ public void OnPluginStart()
     g_hCvar_RejectMessage = CreateConVar("sm_familyshare_reject_message", "Family sharing is disabled on this server.", "Message to display in sourcebans/on ban/on kick", FCVAR_NOTIFY);
     g_hCvar_IgnoreAdmins = CreateConVar("sm_familyshare_ignoreadmins", "1", "Ignore admins using family shared accounts", FCVAR_NOTIFY, true, 0.0, true, 1.0);
     g_hCvar_Whitelist = CreateConVar("sm_familyshare_whitelist", "familyshare_whitelist.cfg", "File to use for whitelist configuration");
+    g_hCvar_Method = CreateConVar("sm_familyshare_method", "0", "Method to detect family sharing [0 = Steam API, 1 = SteamWorks extension]");
 
     g_iAppID = GetAppID();
     if (g_iAppID <= -1)
@@ -360,7 +363,7 @@ public void OnClientPostAdminCheck(int client)
         return;
     }
 
-    if (!IsFakeClient(client))
+    if (GetConVarInt(g_hCvar_Method) == 0 && !IsFakeClient(client))
         checkFamilySharing(client);
 }
 
@@ -439,3 +442,54 @@ stock int GetAppID() {
     CloseHandle(file);
     return -1;
 }
+
+#if defined _SteamWorks_Included
+stock int GetClientOfAuthId(int authid)
+{
+    for(int i = 1; i <= MaxClients; i++)
+    {
+        if(IsClientConnected(i))
+        {
+            char steamid[32]; GetClientAuthId(i, AuthId_Steam3, steamid, sizeof(steamid));
+            char split[3][32]; 
+            ExplodeString(steamid, ":", split, sizeof(split), sizeof(split[]));
+            ReplaceString(split[2], sizeof(split[]), "]", "");
+            //Split 1: [U:
+            //Split 2: 1:
+            //Split 3: 12345]
+            
+            int auth = StringToInt(split[2]);
+            if(auth == authid) return i;
+        }
+    }
+
+    return -1;
+}
+
+public void SteamWorks_OnValidateClient(int ownerauthid, int authid)
+{
+    if (GetConVarInt(g_hCvar_Method) != 1)
+        return;
+
+    int client = GetClientOfAuthId(authid);
+    if(ownerauthid != authid)
+    {
+        char banMessage[PLATFORM_MAX_PATH]; g_hCvar_BanMessage.GetString(banMessage, sizeof(banMessage));
+        KickClient(client, banMessage);
+    }
+
+    /*
+    //Now using SteamWorks:
+    EUserHasLicenseForAppResult result = SteamWorks_HasLicenseForApp(client, g_hCvar_AppId.IntValue);
+
+    //Debug text: PrintToServer("Client %N License Value: %i", client, view_as<int>(result));
+
+    //No License, kick em:
+    if(result > k_EUserHasLicenseResultHasLicense)
+    {
+        char banMessage[PLATFORM_MAX_PATH]; g_hCvar_BanMessage.GetString(banMessage, sizeof(banMessage));
+        KickClient(client, banMessage);
+    }
+    */
+}
+#endif
