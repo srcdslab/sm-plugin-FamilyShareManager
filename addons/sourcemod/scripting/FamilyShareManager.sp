@@ -25,7 +25,7 @@ public Plugin myinfo =
     name = "Family Share Manager",
     author = "Sidezz (+bonbon, 11530, maxime1907, .Rushaway)",
     description = "Whitelist or ban family shared accounts",
-    version = "1.7.0",
+    version = "1.7.1",
     url = ""
 }
 
@@ -472,10 +472,11 @@ public void SteamWorks_OnValidateClient(int ownerauthid, int authid)
         return;
 
     int client = GetClientOfAuthId(authid);
+
     if(ownerauthid != authid)
     {
-        char banMessage[PLATFORM_MAX_PATH]; g_hCvar_BanMessage.GetString(banMessage, sizeof(banMessage));
-        KickClient(client, banMessage);
+        char rejectMessage[255]; GetConVarString(g_hCvar_RejectMessage, rejectMessage, sizeof(rejectMessage));
+        KickClient(client, rejectMessage);
     }
 
     /*
@@ -487,8 +488,8 @@ public void SteamWorks_OnValidateClient(int ownerauthid, int authid)
     //No License, kick em:
     if(result > k_EUserHasLicenseResultHasLicense)
     {
-        char banMessage[PLATFORM_MAX_PATH]; g_hCvar_BanMessage.GetString(banMessage, sizeof(banMessage));
-        KickClient(client, banMessage);
+        char rejectMessage[255]; GetConVarString(g_hCvar_RejectMessage, rejectMessage, sizeof(rejectMessage));
+        KickClient(client, rejectMessage);
     }
     */
 }
