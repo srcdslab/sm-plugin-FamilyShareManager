@@ -235,7 +235,7 @@ public Action command_addToList(int client, int args)
 
 public int playerMenuHandle(Menu playerMenu, MenuAction action, int client, int menuItem)
 {
-    if(action == MenuAction_Select) 
+    if (action == MenuAction_Select) 
     {   
         //Should be our Client's User ID.
         char menuItems[32]; 
@@ -248,7 +248,7 @@ public int playerMenuHandle(Menu playerMenu, MenuAction action, int client, int 
         {
             LogError("[Family Share Manager] Critical Error: Invalid Client of User Id --> playerMenuHandle");
             CloseHandle(playerMenu);
-            return;
+            return 0;
         }
 
         char steamid[32];
@@ -260,7 +260,7 @@ public int playerMenuHandle(Menu playerMenu, MenuAction action, int client, int 
         if(StrContains(steamid, "STEAM_", false) == -1)
         {
             PrintToChat(client, "[Family Share Manager] Invalid Input - Not a Steam 2 ID. (STEAM_0:X:XXXX)");
-            return;
+            return 0;
         }
 
         Handle hFile = OpenFile(g_sWhitelist, "a+");
@@ -269,7 +269,7 @@ public int playerMenuHandle(Menu playerMenu, MenuAction action, int client, int 
             LogError("[Family Share Manager] Critical Error: hFile is Invalid. --> playerMenuHandle");
             PrintToChat(client, "[Family Share Manager] Plugin has encountered a critial error with the list file.");
             CloseHandle(hFile);
-            return;
+            return 0;
         }
 
         WriteFileLine(hFile, steamid);
@@ -277,13 +277,14 @@ public int playerMenuHandle(Menu playerMenu, MenuAction action, int client, int 
         LogMessage("[Family Share Manager] Successfully added %s (%N) to the list.", steamid, target);
         CloseHandle(hFile);
         parseList();
-        return;
+        return 0;
     }
 
     else if(action == MenuAction_End)
     {
         CloseHandle(playerMenu);
     }
+    return 0;
 }
 
 public Action command_displayList(int client, int args)
