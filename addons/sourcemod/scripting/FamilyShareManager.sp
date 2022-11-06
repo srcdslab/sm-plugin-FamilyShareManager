@@ -2,7 +2,10 @@
 
 #include <utilshelper>
 #include <ripext>
+#include <multicolors>
 #tryinclude <SteamWorks>
+
+#define TAG "{green}[Family Share Manager]"
 
 Handle g_hCvar_Reject = INVALID_HANDLE;
 Handle g_hCvar_RejectDuration = INVALID_HANDLE;
@@ -25,7 +28,7 @@ public Plugin myinfo =
     name = "Family Share Manager",
     author = "Sidezz (+bonbon, 11530, maxime1907, .Rushaway)",
     description = "Whitelist or ban family shared accounts",
-    version = "1.7.1",
+    version = "1.7.2",
     url = ""
 }
 
@@ -87,14 +90,14 @@ public Action command_removeFromList(int client, int args)
     if(hFile == INVALID_HANDLE)
     {
         LogError("[Family Share Manager] Critical Error: hFile is Invalid. --> command_removeFromList");
-        PrintToChat(client, "[Family Share Manager] Plugin has encountered a critial error with the list file.");
+        CPrintToChat(client, "%s {red}Plugin has encountered a critial error with the list file.", TAG);
         CloseHandle(hFile);
         return Plugin_Handled;
     }
 
     if(args == 0)
     {
-        PrintToChat(client, "[Family Share Manager] Invalid Syntax: sm_removefromlist <steam id>");
+        CPrintToChat(client, "%s {default}Invalid Syntax: sm_removefromlist <steam id>", TAG);
         return Plugin_Handled;
     }
 
@@ -113,7 +116,7 @@ public Action command_removeFromList(int client, int args)
 
         ReplaceString(steamid, sizeof(steamid), "\n", "", false);
 
-        PrintToChat(client, "%s - %s", steamid, playerSteam);
+        CPrintToChat(client, "{lightgreen}%s {default}- {olive}%s", steamid, playerSteam);
         //Not found, add to next file.
         if(!StrEqual(steamid, playerSteam, false))
         {
@@ -138,11 +141,11 @@ public Action command_removeFromList(int client, int args)
         if(newFile == INVALID_HANDLE)
         {
             LogError("[Family Share Manager] Critical Error: newFile is Invalid. --> command_removeFromList");
-            PrintToChat(client, "[Family Share Manager] Plugin has encountered a critial error with the list file.");
+            CPrintToChat(client, "%s {red}Plugin has encountered a critial error with the list file.", TAG);
             return Plugin_Handled;
         }
 
-        PrintToChat(client, "[Family Share Manager] Found Steam ID: %s, removing from list...", playerSteam);
+        CPrintToChat(client, "%s {default}Found Steam ID: {lightgreen}%s{default}, removing from list...", TAG, playerSteam);
         
         LogMessage("Begin rewrite of list..");
 
@@ -159,7 +162,7 @@ public Action command_removeFromList(int client, int args)
         parseList();
         return Plugin_Handled;
     }
-    else PrintToChat(client, "[Family Share Manager] Steam ID: %s not found, no action taken.", playerSteam);
+    else CPrintToChat(client, "%s {default}Steam ID: {lightgreen}%s {default}not found, no action taken.", TAG, playerSteam);
     return Plugin_Handled;
 }
 
@@ -193,7 +196,7 @@ public Action command_addToList(int client, int args)
             SetMenuPagination(playersMenu, 7);
             DisplayMenu(playersMenu, client, MENU_TIME_FOREVER);
 
-            PrintToChat(client, "[Family Share Manager] Displaying players menu...");
+            CPrintToChat(client, "%s {default}Displaying players menu...", TAG);
 
             CloseHandle(hFile);
             return Plugin_Handled;
@@ -210,7 +213,7 @@ public Action command_addToList(int client, int args)
 
             if(StrContains(steamid, "STEAM_", false) == -1)
             {
-                PrintToChat(client, "[Family Share Manager] Invalid Input - Not a Steam 2 ID. (STEAM_0:X:XXXX)");
+                CPrintToChat(client, "%s {default}Invalid Input - Not a Steam 2 ID. (STEAM_0:X:XXXX)", TAG);
                 CloseHandle(hFile);
                 return Plugin_Handled;
             }
@@ -218,13 +221,13 @@ public Action command_addToList(int client, int args)
             if(hFile == INVALID_HANDLE)
             {
                 LogError("[Family Share Manager] Critical Error: hFile is Invalid. --> command_addToList");
-                PrintToChat(client, "[Family Share Manager] Plugin has encountered a critial error with the list file.");
+                CPrintToChat(client, "%s {red}Plugin has encountered a critial error with the list file.", TAG);
                 CloseHandle(hFile);
                 return Plugin_Handled;
             }
 
             WriteFileLine(hFile, steamid);
-            PrintToChat(client, "[Family Share Manager] Successfully added %s to the list.", steamid);
+            CPrintToChat(client, "%s {default}Successfully added {lightgreen}%s {default}to the list.", TAG, steamid);
             CloseHandle(hFile);
             parseList();
         }
@@ -259,7 +262,7 @@ public int playerMenuHandle(Menu playerMenu, MenuAction action, int client, int 
 
         if(StrContains(steamid, "STEAM_", false) == -1)
         {
-            PrintToChat(client, "[Family Share Manager] Invalid Input - Not a Steam 2 ID. (STEAM_0:X:XXXX)");
+            CPrintToChat(client, "%s {default}Invalid Input - Not a Steam 2 ID. (STEAM_0:X:XXXX)", TAG);
             return 0;
         }
 
@@ -267,13 +270,13 @@ public int playerMenuHandle(Menu playerMenu, MenuAction action, int client, int 
         if(hFile == INVALID_HANDLE)
         {
             LogError("[Family Share Manager] Critical Error: hFile is Invalid. --> playerMenuHandle");
-            PrintToChat(client, "[Family Share Manager] Plugin has encountered a critial error with the list file.");
+            CPrintToChat(client, "%s {red}Plugin has encountered a critial error with the list file.", TAG);
             CloseHandle(hFile);
             return 0;
         }
 
         WriteFileLine(hFile, steamid);
-        PrintToChat(client, "[Family Share Manager] Successfully added %s (%N) to the list.", steamid, target);
+        CPrintToChat(client, "%s {default}Successfully added {lightgreen}%s {default}({olive}%N{default}) to the list.", TAG, steamid, target);
         LogMessage("[Family Share Manager] Successfully added %s (%N) to the list.", steamid, target);
         CloseHandle(hFile);
         parseList();
@@ -313,7 +316,7 @@ public Action command_displayList(int client, int args)
 
 public Action command_reloadWhiteList(int client, int args)
 {
-    PrintToChat(client, "[Family Share Manager] Rebuilding whitelist...");
+    CPrintToChat(client, "%s Rebuilding whitelist...", TAG);
     parseList(true, client);
     return Plugin_Handled;
 }
@@ -338,7 +341,7 @@ stock void parseList(bool rebuild = false, int client = 0)
     }
 
     if (rebuild && client)
-        PrintToChat(client, "[Family Share Manager] Rebuild complete!");
+        CPrintToChat(client, "%s {default}Rebuild complete!", TAG);
 
     g_bParsed = true;
     CloseHandle(hFile);
