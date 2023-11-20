@@ -347,7 +347,7 @@ stock void parseList(bool rebuild = false, int client = 0)
     CloseHandle(hFile);
 }
 
-public void OnClientPostAdminCheck(int client)
+stock void CheckWhiteList(int client)
 {
     bool whiteListed = false;
     if (g_bParsed)
@@ -366,6 +366,11 @@ public void OnClientPostAdminCheck(int client)
     {
         return;
     }
+}
+
+public void OnClientPostAdminCheck(int client)
+{
+    CheckWhiteList(client);
 
     if (GetConVarInt(g_hCvar_Method) == 0 && !IsFakeClient(client))
         checkFamilySharing(client);
@@ -477,23 +482,7 @@ public void SteamWorks_OnValidateClient(int ownerauthid, int authid)
 
     int client = GetClientOfAuthId(authid);
 
-    bool whiteListed = false;
-    if (g_bParsed)
-    {
-        char auth[2][64];
-        GetClientAuthId(client, AuthId_Steam2, auth[0], sizeof(auth[]));
-        whiteListed = GetTrieString(g_hWhitelistTrie, auth[0], auth[1], sizeof(auth[]));
-        if(whiteListed)
-        {
-            LogMessage("Whitelist found player: %N", client);
-            return;
-        }
-    }
-
-    if (CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC) && GetConVarInt(g_hCvar_IgnoreAdmins) > 0)
-    {
-        return;
-    }
+    CheckWhiteList(client);
 
     if(ownerauthid != authid)
     {
