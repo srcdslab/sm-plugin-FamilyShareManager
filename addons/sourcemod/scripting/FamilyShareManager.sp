@@ -28,7 +28,7 @@ public Plugin myinfo =
     name = "Family Share Manager",
     author = "Sidezz (+bonbon, 11530, maxime1907, .Rushaway)",
     description = "Whitelist or ban family shared accounts",
-    version = "1.7.2",
+    version = "1.7.3",
     url = ""
 }
 
@@ -347,7 +347,7 @@ stock void parseList(bool rebuild = false, int client = 0)
     CloseHandle(hFile);
 }
 
-public void OnClientPostAdminCheck(int client)
+stock bool CheckWhiteList(int client)
 {
     bool whiteListed = false;
     if (g_bParsed)
@@ -358,14 +358,22 @@ public void OnClientPostAdminCheck(int client)
         if(whiteListed)
         {
             LogMessage("Whitelist found player: %N", client);
-            return;
+            return true;
         }
     }
 
     if (CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC) && GetConVarInt(g_hCvar_IgnoreAdmins) > 0)
     {
-        return;
+        return true;
     }
+
+    return false;
+}
+
+public void OnClientPostAdminCheck(int client)
+{
+    if (CheckWhiteList(client))
+        return;
 
     if (GetConVarInt(g_hCvar_Method) == 0 && !IsFakeClient(client))
         checkFamilySharing(client);
@@ -477,8 +485,12 @@ public void SteamWorks_OnValidateClient(int ownerauthid, int authid)
 
     int client = GetClientOfAuthId(authid);
 
+    if (CheckWhiteList(client))
+        return;
+
     if(ownerauthid != authid)
     {
+        LogMessage("Kicking %L (Family share)", client);
         char rejectMessage[255]; GetConVarString(g_hCvar_RejectMessage, rejectMessage, sizeof(rejectMessage));
         KickClient(client, rejectMessage);
     }
