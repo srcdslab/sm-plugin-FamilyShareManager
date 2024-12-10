@@ -24,13 +24,6 @@ project:
       - source: /Pawn/include
         dest: /addons/sourcemod/scripting/include
 
-    - name: utilshelper
-      type: git
-      repo: https://github.com/srcdslab/sm-plugin-UtilsHelper
-      unpack:
-      - source: /addons/sourcemod/scripting/include
-        dest: /addons/sourcemod/scripting/include
-
     - name: multicolors
       type: git
       repo: https://github.com/srcdslab/sm-plugin-MultiColors
