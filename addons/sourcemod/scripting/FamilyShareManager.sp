@@ -4,6 +4,11 @@
 #include <multicolors>
 #include <SteamWorks>
 
+#undef REQUIRE_PLUGIN
+#tryinclude <materialadmin>
+#tryinclude <sourcebanspp>
+#define REQUIRE_PLUGIN
+
 #define TAG "{green}[Family Share Manager]"
 
 ConVar g_hCvar_Reject;
@@ -18,10 +23,21 @@ char g_sWhitelist[PLATFORM_MAX_PATH];
 
 bool g_bParsed = false;
 bool g_bIgnoreAdmins = false;
+bool g_bSourceBans = false;
+bool g_bMaterialAdmin = false;
 
 int g_iAppID = -1;
 int g_iReject;
 int g_iRejectDuration;
+
+// Added this here so it compiles via GitHub Actions without the SourceBans/MaterialAdmin includes.
+#if !defined _sourcebanspp_included
+native void SBPP_BanPlayer(int iAdmin, int iTarget, int iTime, const char[] sReason);
+#endif
+#if !defined _materialadmin_included
+native bool MABanPlayer(int iClient, int iTarget, int iType, int iTime, char[] sReason);
+#define MA_BAN_STEAM		1
+#endif
 
 public Plugin myinfo =
 {
@@ -67,6 +83,22 @@ public void OnPluginStart()
     RegAdminCmd("sm_addtolist", command_addToList, ADMFLAG_ROOT, "Add a player to the whitelist");
     RegAdminCmd("sm_removefromlist", command_removeFromList, ADMFLAG_ROOT, "Remove a player from the whitelist");
     RegAdminCmd("sm_displaylist", command_displayList, ADMFLAG_ROOT, "View current whitelist");
+}
+
+public void OnLibraryAdded(const char []name)
+{
+	if( strcmp(name, "sourcebans++") == 0 )
+		g_bSourceBans = true;
+	else if( strcmp(name, "materialadmin") == 0 )
+		g_bMaterialAdmin = true;
+}
+
+public void OnLibraryRemoved(const char []name)
+{
+	if( strcmp(name, "sourcebans++") == 0 )
+		g_bSourceBans = false;
+	else if( strcmp(name, "materialadmin") == 0 )
+		g_bMaterialAdmin = false;
 }
 
 public void OnConfigsExecuted()
@@ -448,7 +480,13 @@ stock void ApplyPunishement(int client)
         case (2):
         {
             LogAction(-1, -1, "Banning %L for %d minutes (Family share)", client, g_iRejectDuration);
-            ServerCommand("sm_ban #%i %d \"%s\"", GetClientUserId(client), g_iRejectDuration, rejectMessage);
+
+            if (g_bSourceBans && GetFeatureStatus(FeatureType_Native, "SBPP_BanPlayer") == FeatureStatus_Available)
+                SBPP_BanPlayer(0, client, g_iRejectDuration, rejectMessage);
+            else if (g_bMaterialAdmin && GetFeatureStatus(FeatureType_Native, "MABanPlayer") == FeatureStatus_Available)
+                MABanPlayer(0, client, MA_BAN_STEAM, g_iRejectDuration, rejectMessage);
+            else
+                BanClient(client, g_iRejectDuration, BANFLAG_AUTO, rejectMessage);
         }
         case (1):
         {
