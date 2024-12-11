@@ -17,12 +17,11 @@ Handle g_hWhitelistTrie = INVALID_HANDLE;
 char g_sWhitelist[PLATFORM_MAX_PATH];
 
 bool g_bParsed = false;
+bool g_bIgnoreAdmins = false;
 
 int g_iAppID = -1;
-
 int g_iReject;
 int g_iRejectDuration;
-int g_iAdmins;
 
 public Plugin myinfo =
 {
@@ -74,7 +73,7 @@ public void OnConfigsExecuted()
 {
     g_iReject = GetConVarInt(g_hCvar_Reject);
     g_iRejectDuration = GetConVarInt(g_hCvar_RejectDuration);
-    g_iAdmins = GetConVarInt(g_hCvar_IgnoreAdmins);
+    g_bIgnoreAdmins = GetConVarBool(g_hCvar_IgnoreAdmins);
 }
 
 void OnConVarChanged(ConVar convar, const char[] oldValue, const char[] newValue)
@@ -84,7 +83,7 @@ void OnConVarChanged(ConVar convar, const char[] oldValue, const char[] newValue
     else if(convar==g_hCvar_RejectDuration)
         g_iRejectDuration = GetConVarInt(convar);
     else if(convar==g_hCvar_IgnoreAdmins)
-        g_iAdmins = GetConVarInt(convar);
+        g_bIgnoreAdmins = GetConVarBool(convar);
 }
 
 public Action command_removeFromList(int client, int args)
@@ -366,7 +365,7 @@ stock bool CheckWhiteList(int client)
         }
     }
 
-    if (CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC) && g_iAdmins > 0)
+    if (CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC) && g_bIgnoreAdmins)
     {
         return true;
     }
@@ -454,7 +453,7 @@ stock void ApplyPunishement(int client)
         case (1):
         {
             LogAction(-1, -1, "Kicking %L (Family share)", client);
-            ServerCommand("sm_kick #%i \"%s\"", GetClientUserId(client), rejectMessage);
+            KickClient(client, rejectMessage);
         }
     }
 }
