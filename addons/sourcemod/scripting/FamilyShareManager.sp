@@ -30,15 +30,6 @@ int g_iAppID = -1;
 int g_iReject;
 int g_iRejectDuration;
 
-// Added this here so it compiles via GitHub Actions without the SourceBans/MaterialAdmin includes.
-#if !defined _sourcebanspp_included
-native void SBPP_BanPlayer(int iAdmin, int iTarget, int iTime, const char[] sReason);
-#endif
-#if !defined _materialadmin_included
-native bool MABanPlayer(int iClient, int iTarget, int iType, int iTime, char[] sReason);
-#define MA_BAN_STEAM		1
-#endif
-
 public Plugin myinfo =
 {
     name = "Family Share Manager",
@@ -482,9 +473,17 @@ stock void ApplyPunishement(int client)
             LogAction(-1, -1, "Banning %L for %d minutes (Family share)", client, g_iRejectDuration);
 
             if (g_bSourceBans && GetFeatureStatus(FeatureType_Native, "SBPP_BanPlayer") == FeatureStatus_Available)
+            {
+        #if defined _sourcebanspp_included
                 SBPP_BanPlayer(0, client, g_iRejectDuration, rejectMessage);
+        #endif
+            }
+        #if defined _materialadmin_included
             else if (g_bMaterialAdmin && GetFeatureStatus(FeatureType_Native, "MABanPlayer") == FeatureStatus_Available)
+            {
                 MABanPlayer(0, client, MA_BAN_STEAM, g_iRejectDuration, rejectMessage);
+            }
+        #endif
             else
                 BanClient(client, g_iRejectDuration, BANFLAG_AUTO, rejectMessage);
         }
