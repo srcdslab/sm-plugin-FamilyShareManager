@@ -1,53 +1,51 @@
 #pragma newdecls required
 
-#include <utilshelper>
 #include <ripext>
 #include <multicolors>
-#tryinclude <SteamWorks>
+#include <SteamWorks>
+
+#undef REQUIRE_PLUGIN
+#tryinclude <materialadmin>
+#tryinclude <sourcebanspp>
+#define REQUIRE_PLUGIN
 
 #define TAG "{green}[Family Share Manager]"
 
-Handle g_hCvar_Reject = INVALID_HANDLE;
-Handle g_hCvar_RejectDuration = INVALID_HANDLE;
-Handle g_hCvar_RejectMessage = INVALID_HANDLE;
-Handle g_hCvar_Whitelist = INVALID_HANDLE;
-Handle g_hCvar_IgnoreAdmins = INVALID_HANDLE;
+ConVar g_hCvar_Reject;
+ConVar g_hCvar_RejectDuration;
+ConVar g_hCvar_RejectMessage;
+ConVar g_hCvar_Whitelist;
+ConVar g_hCvar_IgnoreAdmins;
+
 Handle g_hWhitelistTrie = INVALID_HANDLE;
-Handle g_hCvar_Method = INVALID_HANDLE;
 
 char g_sWhitelist[PLATFORM_MAX_PATH];
 
 bool g_bParsed = false;
+bool g_bIgnoreAdmins = false;
+bool g_bSourceBans = false;
+bool g_bMaterialAdmin = false;
 
 int g_iAppID = -1;
-
-bool g_bLateLoad = false;
+int g_iReject;
+int g_iRejectDuration;
 
 public Plugin myinfo =
 {
     name = "Family Share Manager",
     author = "Sidezz (+bonbon, 11530, maxime1907, .Rushaway)",
     description = "Whitelist or ban family shared accounts",
-    version = "1.7.3",
+    version = "1.8.0",
     url = ""
-}
-
-public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max)
-{
-   g_bLateLoad = late;
-   return APLRes_Success;
 }
 
 public void OnPluginStart()
 {
-    // Get one here
-    // https://steamcommunity.com/dev
     g_hCvar_Reject = CreateConVar("sm_familyshare_reject", "1", "2 = ban, 1 = kick, 0 = ignore", FCVAR_NOTIFY);
     g_hCvar_RejectDuration = CreateConVar("sm_familyshare_reject_duration", "10", "How much time is the player banned", FCVAR_NOTIFY);
     g_hCvar_RejectMessage = CreateConVar("sm_familyshare_reject_message", "Family sharing is disabled on this server.", "Message to display in sourcebans/on ban/on kick", FCVAR_NOTIFY);
     g_hCvar_IgnoreAdmins = CreateConVar("sm_familyshare_ignoreadmins", "1", "Ignore admins using family shared accounts", FCVAR_NOTIFY, true, 0.0, true, 1.0);
     g_hCvar_Whitelist = CreateConVar("sm_familyshare_whitelist", "familyshare_whitelist.cfg", "File to use for whitelist configuration");
-    g_hCvar_Method = CreateConVar("sm_familyshare_method", "0", "Method to detect family sharing [0 = Steam API, 1 = SteamWorks extension]");
 
     g_iAppID = GetAppID();
     if (g_iAppID <= -1)
@@ -68,19 +66,47 @@ public void OnPluginStart()
 
     parseList();
 
+    HookConVarChange(g_hCvar_Reject, OnConVarChanged);
+    HookConVarChange(g_hCvar_RejectDuration, OnConVarChanged);
+    HookConVarChange(g_hCvar_IgnoreAdmins, OnConVarChanged);
+
     RegAdminCmd("sm_reloadlist", command_reloadWhiteList, ADMFLAG_ROOT, "Reload the whitelist");
     RegAdminCmd("sm_addtolist", command_addToList, ADMFLAG_ROOT, "Add a player to the whitelist");
     RegAdminCmd("sm_removefromlist", command_removeFromList, ADMFLAG_ROOT, "Remove a player from the whitelist");
     RegAdminCmd("sm_displaylist", command_displayList, ADMFLAG_ROOT, "View current whitelist");
+}
 
-    if (g_bLateLoad)
-    {
-        for (int i = 1; i < MaxClients; i++)
-        {
-            if (IsClientInGame(i) && IsClientAuthorized(i))
-                OnClientPostAdminCheck(i);
-        }
-    }
+public void OnLibraryAdded(const char []name)
+{
+	if( strcmp(name, "sourcebans++") == 0 )
+		g_bSourceBans = true;
+	else if( strcmp(name, "materialadmin") == 0 )
+		g_bMaterialAdmin = true;
+}
+
+public void OnLibraryRemoved(const char []name)
+{
+	if( strcmp(name, "sourcebans++") == 0 )
+		g_bSourceBans = false;
+	else if( strcmp(name, "materialadmin") == 0 )
+		g_bMaterialAdmin = false;
+}
+
+public void OnConfigsExecuted()
+{
+    g_iReject = GetConVarInt(g_hCvar_Reject);
+    g_iRejectDuration = GetConVarInt(g_hCvar_RejectDuration);
+    g_bIgnoreAdmins = GetConVarBool(g_hCvar_IgnoreAdmins);
+}
+
+void OnConVarChanged(ConVar convar, const char[] oldValue, const char[] newValue)
+{
+    if(convar==g_hCvar_Reject)
+        g_iReject = GetConVarInt(convar);
+    else if(convar==g_hCvar_RejectDuration)
+        g_iRejectDuration = GetConVarInt(convar);
+    else if(convar==g_hCvar_IgnoreAdmins)
+        g_bIgnoreAdmins = GetConVarBool(convar);
 }
 
 public Action command_removeFromList(int client, int args)
@@ -255,7 +281,7 @@ public int playerMenuHandle(Menu playerMenu, MenuAction action, int client, int 
         }
 
         char steamid[32];
-        GetClientAuthId(target, AuthId_Steam2, steamid, sizeof(steamid));
+        GetClientAuthId(target, AuthId_Steam2, steamid, sizeof(steamid), false);
 
         StripQuotes(steamid);
         TrimString(steamid);
@@ -353,7 +379,7 @@ stock bool CheckWhiteList(int client)
     if (g_bParsed)
     {
         char auth[2][64];
-        GetClientAuthId(client, AuthId_Steam2, auth[0], sizeof(auth[]));
+        GetClientAuthId(client, AuthId_Steam2, auth[0], sizeof(auth[]), false);
         whiteListed = GetTrieString(g_hWhitelistTrie, auth[0], auth[1], sizeof(auth[]));
         if(whiteListed)
         {
@@ -362,76 +388,12 @@ stock bool CheckWhiteList(int client)
         }
     }
 
-    if (CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC) && GetConVarInt(g_hCvar_IgnoreAdmins) > 0)
+    if (CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC) && g_bIgnoreAdmins)
     {
         return true;
     }
 
     return false;
-}
-
-public void OnClientPostAdminCheck(int client)
-{
-    if (CheckWhiteList(client))
-        return;
-
-    if (GetConVarInt(g_hCvar_Method) == 0 && !IsFakeClient(client))
-        checkFamilySharing(client);
-}
-
-stock void checkFamilySharing(int client)
-{
-	char sSteam64ID[32];
-	GetClientAuthId(client, AuthId_SteamID64, sSteam64ID, sizeof(sSteam64ID));
-
-	char sSteamAPIEndpoint[255];
-	GetSteamAPIEndpoint(sSteamAPIEndpoint, sizeof(sSteamAPIEndpoint));
-
-	char sSteamAPIKey[64];
-	GetSteamAPIKey(sSteamAPIKey, sizeof(sSteamAPIKey));
-
-	char sRequest[256];
-	FormatEx(sRequest, sizeof(sRequest), "http://%s/IPlayerService/IsPlayingSharedGame/v0001/?key=%s&steamid=%s&appid_playing=%d&format=json", sSteamAPIEndpoint, sSteamAPIKey, sSteam64ID, g_iAppID);
-
-	HTTPRequest request = new HTTPRequest(sRequest);
-
-	request.Get(OnFamilyShareReceived, client);
-}
-
-stock void OnFamilyShareReceived(HTTPResponse response, any client)
-{
-    if (response.Status != HTTPStatus_OK)
-        return;
-
-    // Indicate that the response contains a JSON object
-    JSONObject responseData = view_as<JSONObject>(response.Data);
-
-    if (!responseData.HasKey("lender_steamid"))
-        return;
-
-    int lenderSteamid = responseData.GetInt("lender_steamid");
-
-    char rejectMessage[255];
-    GetConVarString(g_hCvar_RejectMessage, rejectMessage, sizeof(rejectMessage));
-
-    if (lenderSteamid == 0)
-        return;
-
-    int iReject = GetConVarInt(g_hCvar_Reject);
-
-    switch (iReject)
-    {
-        case (2):
-        {
-            LogMessage("Banning %L for %d minutes (Family share)", client, GetConVarInt(g_hCvar_RejectDuration));
-            ServerCommand("sm_ban #%i %d \"%s\"", GetClientUserId(client), GetConVarInt(g_hCvar_RejectDuration), rejectMessage);
-        }
-        case (1):
-        {
-            LogMessage("Kicking %L (Family share)", client);
-            ServerCommand("sm_kick #%i \"%s\"", GetClientUserId(client), rejectMessage);
-        }
-    }
 }
 
 // Credit to Dr. McKay
@@ -455,7 +417,6 @@ stock int GetAppID() {
     return -1;
 }
 
-#if defined _SteamWorks_Included
 stock int GetClientOfAuthId(int authid)
 {
     for(int i = 1; i <= MaxClients; i++)
@@ -469,7 +430,7 @@ stock int GetClientOfAuthId(int authid)
             //Split 1: [U:
             //Split 2: 1:
             //Split 3: 12345]
-            
+
             int auth = StringToInt(split[2]);
             if(auth == authid) return i;
         }
@@ -480,33 +441,56 @@ stock int GetClientOfAuthId(int authid)
 
 public void SteamWorks_OnValidateClient(int ownerauthid, int authid)
 {
-    if (GetConVarInt(g_hCvar_Method) != 1)
+    if (g_iReject < 1)
         return;
 
     int client = GetClientOfAuthId(authid);
 
+    if (client < 1 || client > MaxClients)
+        return;
+
+    if (IsFakeClient(client) || IsClientSourceTV(client))
+        return;
+
     if (CheckWhiteList(client))
         return;
 
-    if(ownerauthid != authid)
+    if (ownerauthid != authid)
     {
-        LogMessage("Kicking %L (Family share)", client);
-        char rejectMessage[255]; GetConVarString(g_hCvar_RejectMessage, rejectMessage, sizeof(rejectMessage));
-        KickClient(client, rejectMessage);
+        ApplyPunishement(client);
     }
-
-    /*
-    //Now using SteamWorks:
-    EUserHasLicenseForAppResult result = SteamWorks_HasLicenseForApp(client, g_hCvar_AppId.IntValue);
-
-    //Debug text: PrintToServer("Client %N License Value: %i", client, view_as<int>(result));
-
-    //No License, kick em:
-    if(result > k_EUserHasLicenseResultHasLicense)
-    {
-        char rejectMessage[255]; GetConVarString(g_hCvar_RejectMessage, rejectMessage, sizeof(rejectMessage));
-        KickClient(client, rejectMessage);
-    }
-    */
 }
-#endif
+
+stock void ApplyPunishement(int client)
+{
+    char rejectMessage[255];
+    GetConVarString(g_hCvar_RejectMessage, rejectMessage, sizeof(rejectMessage));
+
+    switch (g_iReject)
+    {
+        case (2):
+        {
+            LogAction(-1, -1, "Banning %L for %d minutes (Family share)", client, g_iRejectDuration);
+
+            if (g_bSourceBans && GetFeatureStatus(FeatureType_Native, "SBPP_BanPlayer") == FeatureStatus_Available)
+            {
+        #if defined _sourcebanspp_included
+                SBPP_BanPlayer(0, client, g_iRejectDuration, rejectMessage);
+        #endif
+            }
+        #if defined _materialadmin_included
+            else if (g_bMaterialAdmin && GetFeatureStatus(FeatureType_Native, "MABanPlayer") == FeatureStatus_Available)
+            {
+                MABanPlayer(0, client, MA_BAN_STEAM, g_iRejectDuration, rejectMessage);
+            }
+        #endif
+            else
+                BanClient(client, g_iRejectDuration, BANFLAG_AUTO, rejectMessage);
+        }
+        case (1):
+        {
+            LogAction(-1, -1, "Kicking %L (Family share)", client);
+            KickClient(client, rejectMessage);
+        }
+    }
+}
