@@ -48,7 +48,7 @@ public void OnPluginStart()
     g_hCvar_RejectDuration = CreateConVar("sm_familyshare_reject_duration", "10", "How much time is the player banned", FCVAR_NOTIFY);
     g_hCvar_RejectMessage = CreateConVar("sm_familyshare_reject_message", "Family sharing is disabled on this server.", "Message to display in sourcebans/on ban/on kick", FCVAR_NOTIFY);
     g_hCvar_IgnoreAdmins = CreateConVar("sm_familyshare_ignoreadmins", "1", "Ignore admins using family shared accounts", FCVAR_NOTIFY, true, 0.0, true, 1.0);
-    g_hCvarAdminFlags = CreateConVar("sm_familyshare_adminsflags", "z", "Set flags for admins to be automaticly whitelisted. Set several flags if necessary. Ex: \"abcz\"");
+    g_hCvarAdminFlags = CreateConVar("sm_familyshare_ignoreadmins_flags", "z", "Set flags for admins to be automaticly whitelisted. Set several flags if necessary. Ex: \"abcz\"");
     g_hCvarAdminFlags.GetString(sBuffer, sizeof(sBuffer));
     g_iAdminFlags = ReadFlagString(sBuffer);
     g_hCvar_Whitelist = CreateConVar("sm_familyshare_whitelist", "familyshare_whitelist.cfg", "File to use for whitelist configuration");
