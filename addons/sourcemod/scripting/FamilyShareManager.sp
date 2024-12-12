@@ -16,6 +16,7 @@ ConVar g_hCvar_RejectDuration;
 ConVar g_hCvar_RejectMessage;
 ConVar g_hCvar_Whitelist;
 ConVar g_hCvar_IgnoreAdmins;
+ConVar g_hCvarAdminFlags;
 
 Handle g_hWhitelistTrie = INVALID_HANDLE;
 
@@ -29,22 +30,27 @@ bool g_bMaterialAdmin = false;
 int g_iAppID = -1;
 int g_iReject;
 int g_iRejectDuration;
+int g_iAdminFlags;
 
 public Plugin myinfo =
 {
     name = "Family Share Manager",
     author = "Sidezz (+bonbon, 11530, maxime1907, .Rushaway)",
     description = "Whitelist or ban family shared accounts",
-    version = "1.8.0",
+    version = "1.8.1",
     url = ""
 }
 
 public void OnPluginStart()
 {
+    char sBuffer[PLATFORM_MAX_PATH];
     g_hCvar_Reject = CreateConVar("sm_familyshare_reject", "1", "2 = ban, 1 = kick, 0 = ignore", FCVAR_NOTIFY);
     g_hCvar_RejectDuration = CreateConVar("sm_familyshare_reject_duration", "10", "How much time is the player banned", FCVAR_NOTIFY);
     g_hCvar_RejectMessage = CreateConVar("sm_familyshare_reject_message", "Family sharing is disabled on this server.", "Message to display in sourcebans/on ban/on kick", FCVAR_NOTIFY);
     g_hCvar_IgnoreAdmins = CreateConVar("sm_familyshare_ignoreadmins", "1", "Ignore admins using family shared accounts", FCVAR_NOTIFY, true, 0.0, true, 1.0);
+    g_hCvarAdminFlags = CreateConVar("sm_familyshare_adminsflags", "z", "Set flags for admins to be automaticly whitelisted. Set several flags if necessary. Ex: \"abcz\"");
+    g_hCvarAdminFlags.GetString(sBuffer, sizeof(sBuffer));
+    g_iAdminFlags = ReadFlagString(sBuffer);
     g_hCvar_Whitelist = CreateConVar("sm_familyshare_whitelist", "familyshare_whitelist.cfg", "File to use for whitelist configuration");
 
     g_iAppID = GetAppID();
@@ -78,25 +84,28 @@ public void OnPluginStart()
 
 public void OnLibraryAdded(const char []name)
 {
-	if( strcmp(name, "sourcebans++") == 0 )
-		g_bSourceBans = true;
-	else if( strcmp(name, "materialadmin") == 0 )
-		g_bMaterialAdmin = true;
+    if( strcmp(name, "sourcebans++") == 0 )
+        g_bSourceBans = true;
+    else if( strcmp(name, "materialadmin") == 0 )
+        g_bMaterialAdmin = true;
 }
 
 public void OnLibraryRemoved(const char []name)
 {
-	if( strcmp(name, "sourcebans++") == 0 )
-		g_bSourceBans = false;
-	else if( strcmp(name, "materialadmin") == 0 )
-		g_bMaterialAdmin = false;
+    if( strcmp(name, "sourcebans++") == 0 )
+        g_bSourceBans = false;
+    else if( strcmp(name, "materialadmin") == 0 )
+        g_bMaterialAdmin = false;
 }
 
 public void OnConfigsExecuted()
 {
+    char sBuffer[PLATFORM_MAX_PATH];
     g_iReject = GetConVarInt(g_hCvar_Reject);
     g_iRejectDuration = GetConVarInt(g_hCvar_RejectDuration);
     g_bIgnoreAdmins = GetConVarBool(g_hCvar_IgnoreAdmins);
+    GetConVarString(g_hCvarAdminFlags, sBuffer, sizeof(sBuffer));
+    g_iAdminFlags = ReadFlagString(sBuffer);
 }
 
 void OnConVarChanged(ConVar convar, const char[] oldValue, const char[] newValue)
@@ -107,6 +116,8 @@ void OnConVarChanged(ConVar convar, const char[] oldValue, const char[] newValue
         g_iRejectDuration = GetConVarInt(convar);
     else if(convar==g_hCvar_IgnoreAdmins)
         g_bIgnoreAdmins = GetConVarBool(convar);
+    else if(convar==g_hCvarAdminFlags)
+        g_iAdminFlags = ReadFlagString(newValue);
 }
 
 public Action command_removeFromList(int client, int args)
@@ -132,7 +143,7 @@ public Action command_removeFromList(int client, int args)
 
     StripQuotes(playerSteam);
     TrimString(playerSteam);
-  
+
     bool found = false;
     Handle fileArray = CreateArray(32);
 
@@ -388,7 +399,7 @@ stock bool CheckWhiteList(int client)
         }
     }
 
-    if (CheckCommandAccess(client, "sm_admin", ADMFLAG_GENERIC) && g_bIgnoreAdmins)
+    if (g_bIgnoreAdmins && IsAdmin(client))
     {
         return true;
     }
@@ -493,4 +504,9 @@ stock void ApplyPunishement(int client)
             KickClient(client, rejectMessage);
         }
     }
+}
+
+stock bool IsAdmin(int client)
+{
+    return view_as<bool>(GetUserFlagBits(client) & g_iAdminFlags);
 }
