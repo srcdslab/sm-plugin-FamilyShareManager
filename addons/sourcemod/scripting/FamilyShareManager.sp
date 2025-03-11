@@ -37,7 +37,7 @@ public Plugin myinfo =
     name = "Family Share Manager",
     author = "Sidezz (+bonbon, 11530, maxime1907, .Rushaway)",
     description = "Whitelist or ban family shared accounts",
-    version = "1.8.1",
+    version = "1.8.2",
     url = ""
 }
 
@@ -489,12 +489,12 @@ stock void ApplyPunishement(int client)
                 SBPP_BanPlayer(0, client, g_iRejectDuration, rejectMessage);
         #endif
             }
-        #if defined _materialadmin_included
             else if (g_bMaterialAdmin && GetFeatureStatus(FeatureType_Native, "MABanPlayer") == FeatureStatus_Available)
             {
+        #if defined _materialadmin_included
                 MABanPlayer(0, client, MA_BAN_STEAM, g_iRejectDuration, rejectMessage);
-            }
         #endif
+            }
             else
                 BanClient(client, g_iRejectDuration, BANFLAG_AUTO, rejectMessage);
         }
