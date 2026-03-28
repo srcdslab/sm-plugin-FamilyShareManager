@@ -2,15 +2,11 @@ project:
   sourceknight: 0.3
   name: FamilyShareManager
 
-  vars:
-    sm_branch: 1.12
-    sm_version: 1.12.0-git7223
-
   dependencies:
     - name: sourcemod
       type: tar
-      version: ${sm_version}
-      location: https://sm.alliedmods.net/smdrop/${sm_branch}/sourcemod-${sm_version}-linux.tar.gz
+      version: 1.12.0-git7223
+      location: https://sm.alliedmods.net/smdrop/1.12/sourcemod-1.12.0-git7223-linux.tar.gz
       unpack:
         - source: /addons
           dest: /addons
