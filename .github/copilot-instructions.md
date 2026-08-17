@@ -5,15 +5,15 @@ This repository contains the **Family Share Manager** SourcePawn plugin for Sour
 
 ## Technical Environment
 - **Language**: SourcePawn
-- **Platform**: SourceMod 1.11.0+ (configured for 1.11.0-git6934 in sourceknight.yaml)
-- **Build System**: SourceKnight (see `sourceknight.yaml`)
-- **Compiler**: SourcePawn compiler (spcomp) via SourceKnight
+- **Platform**: SourceMod 1.12+
+- **Build System**: Native GitHub Actions (see `.github/workflows/ci.yml`)
+- **Compiler**: SourcePawn compiler (spcomp) via `rumblefrog/setup-sp`
 - **Primary File**: `addons/sourcemod/scripting/FamilyShareManager.sp`
 - **Code Style**: Uses legacy patterns (CreateTrie, CloseHandle) - prefer modern patterns for new code
 
 ## Dependencies & Extensions
-The plugin requires these dependencies (auto-managed by SourceKnight):
-- **SourceMod**: 1.11.0-git6934 or newer
+The plugin requires these dependencies (installed by the CI workflow):
+- **SourceMod**: 1.12.x or newer
 - **SteamWorks Extension**: For family sharing detection via `SteamWorks_OnValidateClient`
 - **RipExt Extension**: For HTTP functionality (if needed)
 - **MultiColors Plugin**: For colored chat messages
@@ -121,23 +121,21 @@ addons/sourcemod/
 
 ## Build & Development Process
 
-### Building with SourceKnight
+### Building with the CI workflow
 ```bash
-# Install SourceKnight and build
-sourceknight build
-
-# Output location: .sourceknight/package/addons/sourcemod/plugins/
+# CI installs spcomp via rumblefrog/setup-sp and compiles directly
+# Output location: addons/sourcemod/plugins/FamilyShareManager.smx
 ```
 
 ### Local Development
 1. Edit `addons/sourcemod/scripting/FamilyShareManager.sp`
-2. Run `sourceknight build` to compile
+2. Compile with `spcomp` (with dependency includes on the include path) to verify
 3. Test on development server
 4. Verify no compilation errors or warnings
 
 ### CI/CD Process
-- GitHub Actions automatically builds on push/PR
-- Uses `maxime1907/action-sourceknight@v1`
+- GitHub Actions automatically builds on push/PR (`.github/workflows/ci.yml`)
+- Uses `rumblefrog/setup-sp` to install the SourcePawn compiler
 - Creates releases with compiled plugins
 - Uploads artifacts for testing
 
