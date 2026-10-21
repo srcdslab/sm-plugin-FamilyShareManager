@@ -18,7 +18,7 @@ ConVar g_hCvar_Whitelist;
 ConVar g_hCvar_IgnoreAdmins;
 ConVar g_hCvarAdminFlags;
 
-Handle g_hWhitelistTrie = INVALID_HANDLE;
+StringMap g_hWhitelistTrie = null;
 
 char g_sWhitelist[PLATFORM_MAX_PATH];
 
@@ -37,7 +37,7 @@ public Plugin myinfo =
     name = "Family Share Manager",
     author = "Sidezz (+bonbon, 11530, maxime1907, .Rushaway)",
     description = "Whitelist or ban family shared accounts",
-    version = "1.8.2",
+    version = "1.8.3",
     url = ""
 }
 
@@ -58,10 +58,10 @@ public void OnPluginStart()
         SetFailState("Could not determine the game app id (cstrike/steam.inf)");
 
     g_bParsed = false;
-    g_hWhitelistTrie = CreateTrie();
+    g_hWhitelistTrie = new StringMap();
 
     char file[PLATFORM_MAX_PATH], filePath[PLATFORM_MAX_PATH];
-    GetConVarString(g_hCvar_Whitelist, file, sizeof(file));
+    g_hCvar_Whitelist.GetString(file, sizeof(file));
     BuildPath(Path_SM, g_sWhitelist, sizeof(g_sWhitelist), "configs/%s", file);
     LogMessage("Built Filepath to: %s", g_sWhitelist);
 
@@ -72,9 +72,9 @@ public void OnPluginStart()
 
     parseList();
 
-    HookConVarChange(g_hCvar_Reject, OnConVarChanged);
-    HookConVarChange(g_hCvar_RejectDuration, OnConVarChanged);
-    HookConVarChange(g_hCvar_IgnoreAdmins, OnConVarChanged);
+    g_hCvar_Reject.AddChangeHook(OnConVarChanged);
+    g_hCvar_RejectDuration.AddChangeHook(OnConVarChanged);
+    g_hCvar_IgnoreAdmins.AddChangeHook(OnConVarChanged);
 
     RegAdminCmd("sm_reloadlist", command_reloadWhiteList, ADMFLAG_ROOT, "Reload the whitelist");
     RegAdminCmd("sm_addtolist", command_addToList, ADMFLAG_ROOT, "Add a player to the whitelist");
@@ -101,34 +101,34 @@ public void OnLibraryRemoved(const char []name)
 public void OnConfigsExecuted()
 {
     char sBuffer[PLATFORM_MAX_PATH];
-    g_iReject = GetConVarInt(g_hCvar_Reject);
-    g_iRejectDuration = GetConVarInt(g_hCvar_RejectDuration);
-    g_bIgnoreAdmins = GetConVarBool(g_hCvar_IgnoreAdmins);
-    GetConVarString(g_hCvarAdminFlags, sBuffer, sizeof(sBuffer));
+    g_iReject = g_hCvar_Reject.IntValue;
+    g_iRejectDuration = g_hCvar_RejectDuration.IntValue;
+    g_bIgnoreAdmins = g_hCvar_IgnoreAdmins.BoolValue;
+    g_hCvarAdminFlags.GetString(sBuffer, sizeof(sBuffer));
     g_iAdminFlags = ReadFlagString(sBuffer);
 }
 
 void OnConVarChanged(ConVar convar, const char[] oldValue, const char[] newValue)
 {
     if(convar==g_hCvar_Reject)
-        g_iReject = GetConVarInt(convar);
+        g_iReject = convar.IntValue;
     else if(convar==g_hCvar_RejectDuration)
-        g_iRejectDuration = GetConVarInt(convar);
+        g_iRejectDuration = convar.IntValue;
     else if(convar==g_hCvar_IgnoreAdmins)
-        g_bIgnoreAdmins = GetConVarBool(convar);
+        g_bIgnoreAdmins = convar.BoolValue;
     else if(convar==g_hCvarAdminFlags)
         g_iAdminFlags = ReadFlagString(newValue);
 }
 
 public Action command_removeFromList(int client, int args)
 {
-    Handle hFile = OpenFile(g_sWhitelist, "a+");
+    File hFile = OpenFile(g_sWhitelist, "a+");
 
-    if(hFile == INVALID_HANDLE)
+    if(hFile == null)
     {
         LogError("[Family Share Manager] Critical Error: hFile is Invalid. --> command_removeFromList");
         CPrintToChat(client, "%s {red}Plugin has encountered a critial error with the list file.", TAG);
-        CloseHandle(hFile);
+        delete hFile;
         return Plugin_Handled;
     }
 
@@ -145,9 +145,9 @@ public Action command_removeFromList(int client, int args)
     TrimString(playerSteam);
 
     bool found = false;
-    Handle fileArray = CreateArray(32);
+    ArrayList fileArray = new ArrayList(32);
 
-    while(!IsEndOfFile(hFile) && ReadFileLine(hFile, steamid, sizeof(steamid)))
+    while(!hFile.EndOfFile() && hFile.ReadLine(steamid, sizeof(steamid)))
     {
         if(strlen(steamid) < 1 || IsCharSpace(steamid[0])) continue;
 
@@ -157,7 +157,7 @@ public Action command_removeFromList(int client, int args)
         //Not found, add to next file.
         if(!StrEqual(steamid, playerSteam, false))
         {
-            PushArrayString(fileArray, steamid);
+            fileArray.PushString(steamid);
         }
 
         //Found, remove from file.
@@ -167,15 +167,15 @@ public Action command_removeFromList(int client, int args)
         }
     }
 
-    CloseHandle(hFile);
+    delete hFile;
 
     //Delete and rewrite list if found..
     if(found)
     {
         DeleteFile(g_sWhitelist); //I hate this, scares the shit out of me.
-        Handle newFile = OpenFile(g_sWhitelist, "a+");
+        File newFile = OpenFile(g_sWhitelist, "a+");
 
-        if(newFile == INVALID_HANDLE)
+        if(newFile == null)
         {
             LogError("[Family Share Manager] Critical Error: newFile is Invalid. --> command_removeFromList");
             CPrintToChat(client, "%s {red}Plugin has encountered a critial error with the list file.", TAG);
@@ -186,16 +186,16 @@ public Action command_removeFromList(int client, int args)
         
         LogMessage("Begin rewrite of list..");
 
-        for(int i = 0; i < GetArraySize(fileArray); i++)
+        for(int i = 0; i < fileArray.Length; i++)
         {
             char writeLine[32];
-            GetArrayString(fileArray, i, writeLine, sizeof(writeLine));
-            WriteFileLine(newFile, writeLine);
+            fileArray.GetString(i, writeLine, sizeof(writeLine));
+            newFile.WriteLine(writeLine);
             LogMessage("Wrote %s to list.", writeLine);
         }
 
-        CloseHandle(newFile);
-        CloseHandle(fileArray);
+        delete newFile;
+        delete fileArray;
         parseList();
         return Plugin_Handled;
     }
@@ -205,7 +205,7 @@ public Action command_removeFromList(int client, int args)
 
 public Action command_addToList(int client, int args)
 {
-    Handle hFile = OpenFile(g_sWhitelist, "a+");
+    File hFile = OpenFile(g_sWhitelist, "a+");
     
     //Argument Count:
     switch(args)
@@ -213,29 +213,29 @@ public Action command_addToList(int client, int args)
         //Create Player List:
         case 0:
         {
-            Handle playersMenu = CreateMenu(playerMenuHandle);
+            Menu playersMenu = new Menu(playerMenuHandle);
             for(int i = 1; i <= MaxClients; i++)
             {
                 if(IsClientAuthorized(i) && i != client)
                 {
-                    SetMenuTitle(playersMenu, "Viewing all players...");
+                    playersMenu.SetTitle("Viewing all players...");
 
                     char formatItem[2][32];
                     Format(formatItem[0], sizeof(formatItem[]), "%i", GetClientUserId(i));
                     Format(formatItem[1], sizeof(formatItem[]), "%N", i);
 
                     //Adds menu item per player --> Client User ID, Display as Username.
-                    AddMenuItem(playersMenu, formatItem[0], formatItem[1]);
+                    playersMenu.AddItem(formatItem[0], formatItem[1]);
                 }
             }
 
-            SetMenuExitButton(playersMenu, true);
-            SetMenuPagination(playersMenu, 7);
-            DisplayMenu(playersMenu, client, MENU_TIME_FOREVER);
+            playersMenu.ExitButton = true;
+            playersMenu.Pagination = 7;
+            playersMenu.Display(client, MENU_TIME_FOREVER);
 
             CPrintToChat(client, "%s {default}Displaying players menu...", TAG);
 
-            CloseHandle(hFile);
+            delete hFile;
             return Plugin_Handled;
         }
 
@@ -251,21 +251,21 @@ public Action command_addToList(int client, int args)
             if(StrContains(steamid, "STEAM_", false) == -1)
             {
                 CPrintToChat(client, "%s {default}Invalid Input - Not a Steam 2 ID. (STEAM_0:X:XXXX)", TAG);
-                CloseHandle(hFile);
+                delete hFile;
                 return Plugin_Handled;
             }
 
-            if(hFile == INVALID_HANDLE)
+            if(hFile == null)
             {
                 LogError("[Family Share Manager] Critical Error: hFile is Invalid. --> command_addToList");
                 CPrintToChat(client, "%s {red}Plugin has encountered a critial error with the list file.", TAG);
-                CloseHandle(hFile);
+                delete hFile;
                 return Plugin_Handled;
             }
 
-            WriteFileLine(hFile, steamid);
+            hFile.WriteLine(steamid);
             CPrintToChat(client, "%s {default}Successfully added {lightgreen}%s {default}to the list.", TAG, steamid);
-            CloseHandle(hFile);
+            delete hFile;
             parseList();
         }
     }
@@ -279,7 +279,7 @@ public int playerMenuHandle(Menu playerMenu, MenuAction action, int client, int 
     {   
         //Should be our Client's User ID.
         char menuItems[32]; 
-        GetMenuItem(playerMenu, menuItem, menuItems, sizeof(menuItems));
+        playerMenu.GetItem(menuItem, menuItems, sizeof(menuItems));
 
         int target = GetClientOfUserId(StringToInt(menuItems));
         
@@ -287,7 +287,7 @@ public int playerMenuHandle(Menu playerMenu, MenuAction action, int client, int 
         if(target == 0)
         {
             LogError("[Family Share Manager] Critical Error: Invalid Client of User Id --> playerMenuHandle");
-            CloseHandle(playerMenu);
+            delete playerMenu;
             return 0;
         }
 
@@ -303,26 +303,26 @@ public int playerMenuHandle(Menu playerMenu, MenuAction action, int client, int 
             return 0;
         }
 
-        Handle hFile = OpenFile(g_sWhitelist, "a+");
-        if(hFile == INVALID_HANDLE)
+        File hFile = OpenFile(g_sWhitelist, "a+");
+        if(hFile == null)
         {
             LogError("[Family Share Manager] Critical Error: hFile is Invalid. --> playerMenuHandle");
             CPrintToChat(client, "%s {red}Plugin has encountered a critial error with the list file.", TAG);
-            CloseHandle(hFile);
+            delete hFile;
             return 0;
         }
 
-        WriteFileLine(hFile, steamid);
+        hFile.WriteLine(steamid);
         CPrintToChat(client, "%s {default}Successfully added {lightgreen}%s {default}({olive}%N{default}) to the list.", TAG, steamid, target);
         LogMessage("[Family Share Manager] Successfully added %s (%N) to the list.", steamid, target);
-        CloseHandle(hFile);
+        delete hFile;
         parseList();
         return 0;
     }
 
     else if(action == MenuAction_End)
     {
-        CloseHandle(playerMenu);
+        delete playerMenu;
     }
     return 0;
 }
@@ -330,9 +330,9 @@ public int playerMenuHandle(Menu playerMenu, MenuAction action, int client, int 
 public Action command_displayList(int client, int args)
 {
     char auth[32];
-    Handle hFile = OpenFile(g_sWhitelist, "a+");
+    File hFile = OpenFile(g_sWhitelist, "a+");
 
-    while(!IsEndOfFile(hFile) && ReadFileLine(hFile, auth, sizeof(auth)))
+    while(!hFile.EndOfFile() && hFile.ReadLine(auth, sizeof(auth)))
     {
         TrimString(auth);
         StripQuotes(auth);
@@ -347,7 +347,7 @@ public Action command_displayList(int client, int args)
         }
     }
 
-    CloseHandle(hFile);
+    delete hFile;
     return Plugin_Handled;
 }
 
@@ -361,9 +361,9 @@ public Action command_reloadWhiteList(int client, int args)
 stock void parseList(bool rebuild = false, int client = 0)
 {
     char auth[32];
-    Handle hFile = OpenFile(g_sWhitelist, "a+");
+    File hFile = OpenFile(g_sWhitelist, "a+");
 
-    while(!IsEndOfFile(hFile) && ReadFileLine(hFile, auth, sizeof(auth)))
+    while(!hFile.EndOfFile() && hFile.ReadLine(auth, sizeof(auth)))
     {
         TrimString(auth);
         StripQuotes(auth);
@@ -372,7 +372,7 @@ stock void parseList(bool rebuild = false, int client = 0)
 
         if(StrContains(auth, "STEAM_", false) != -1)
         {
-            SetTrieString(g_hWhitelistTrie, auth, auth);
+            g_hWhitelistTrie.SetString(auth, auth);
             LogMessage("Added %s to whitelist", auth);
         }
     }
@@ -381,7 +381,7 @@ stock void parseList(bool rebuild = false, int client = 0)
         CPrintToChat(client, "%s {default}Rebuild complete!", TAG);
 
     g_bParsed = true;
-    CloseHandle(hFile);
+    delete hFile;
 }
 
 stock bool CheckWhiteList(int client)
@@ -391,7 +391,7 @@ stock bool CheckWhiteList(int client)
     {
         char auth[2][64];
         GetClientAuthId(client, AuthId_Steam2, auth[0], sizeof(auth[]), false);
-        whiteListed = GetTrieString(g_hWhitelistTrie, auth[0], auth[1], sizeof(auth[]));
+        whiteListed = g_hWhitelistTrie.GetString(auth[0], auth[1], sizeof(auth[]));
         if(whiteListed)
         {
             LogMessage("Whitelist found player: %N", client);
@@ -410,21 +410,21 @@ stock bool CheckWhiteList(int client)
 // Credit to Dr. McKay
 // https://forums.alliedmods.net/showthread.php?t=233257
 stock int GetAppID() {
-    Handle file = OpenFile("steam.inf", "r");
-    if(file == INVALID_HANDLE) {
+    File file = OpenFile("steam.inf", "r");
+    if(file == null) {
         return -1;
     }
 
     char line[128], parts[2][64];
-    while(ReadFileLine(file, line, sizeof(line))) {
+    while(file.ReadLine(line, sizeof(line))) {
         ExplodeString(line, "=", parts, sizeof(parts), sizeof(parts[]));
         if(StrEqual(parts[0], "appID")) {
-            CloseHandle(file);
+            delete file;
             return StringToInt(parts[1]);
         }
     }
 
-    CloseHandle(file);
+    delete file;
     return -1;
 }
 
@@ -475,7 +475,7 @@ public void SteamWorks_OnValidateClient(int ownerauthid, int authid)
 stock void ApplyPunishement(int client)
 {
     char rejectMessage[255];
-    GetConVarString(g_hCvar_RejectMessage, rejectMessage, sizeof(rejectMessage));
+    g_hCvar_RejectMessage.GetString(rejectMessage, sizeof(rejectMessage));
 
     switch (g_iReject)
     {
