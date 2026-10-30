@@ -14,8 +14,7 @@ This repository contains the **Family Share Manager** SourcePawn plugin for Sour
 ## Dependencies & Extensions
 The plugin requires these dependencies (installed by the CI workflow):
 - **SourceMod**: 1.12.x or newer
-- **SteamWorks Extension**: For family sharing detection via `SteamWorks_OnValidateClient`
-- **RipExt Extension**: For HTTP functionality (if needed)
+- **SteamWorks Extension** ([alliedmodders/SM-SteamWorks](https://github.com/alliedmodders/SM-SteamWorks)): For family sharing detection via `SteamWorks_OnValidateClient`
 - **MultiColors Plugin**: For colored chat messages
 - **Optional**: SourceBans++ and MaterialAdmin for enhanced banning
 

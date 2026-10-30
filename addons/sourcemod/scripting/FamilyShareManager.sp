@@ -1,6 +1,5 @@
 #pragma newdecls required
 
-#include <ripext>
 #include <multicolors>
 #include <SteamWorks>
 
@@ -37,7 +36,7 @@ public Plugin myinfo =
     name = "Family Share Manager",
     author = "Sidezz (+bonbon, 11530, maxime1907, .Rushaway)",
     description = "Whitelist or ban family shared accounts",
-    version = "1.8.3",
+    version = "1.8.4",
     url = ""
 }
 

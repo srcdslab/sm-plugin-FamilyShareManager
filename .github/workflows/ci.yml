@@ -19,10 +19,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p addons/sourcemod/scripting/include deps
-          git clone --depth=1 https://github.com/srcdslab/sm-ext-ripext.git deps/ext-ripext
-          cp -R deps/ext-ripext/pawn/scripting/* addons/sourcemod/scripting/
-          git clone --depth=1 https://github.com/srcdslab/sm-ext-SteamWorks.git deps/ext-steamworks
-          cp -R deps/ext-steamworks/Pawn/include/* addons/sourcemod/scripting/include/
+          git clone --depth=1 https://github.com/alliedmodders/SM-SteamWorks.git deps/ext-steamworks
+          cp -R deps/ext-steamworks/Pawn/includes/* addons/sourcemod/scripting/include/
           git clone --depth=1 https://github.com/srcdslab/sm-plugin-MultiColors.git deps/multicolors
           cp -R deps/multicolors/addons/* addons/
           git clone --depth=1 https://github.com/srcdslab/sourcebans-pp.git deps/sourcebans-pp
