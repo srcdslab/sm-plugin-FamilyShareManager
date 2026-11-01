@@ -1,0 +1,117 @@
+"Phrases"
+{
+	"List File Error"
+	{
+		"en"		"{red}The plugin encountered a critical error with the list file."
+		"fr"		"{red}Le plugin a rencontré une erreur critique avec le fichier de la liste."
+		"ru"		"{red}Плагин столкнулся с критической ошибкой при работе с файлом списка."
+		"es"		"{red}El plugin encontró un error crítico con el archivo de la lista."
+		"de"		"{red}Das Plugin hat einen kritischen Fehler mit der Listendatei festgestellt."
+		"pt"		"{red}O plugin encontrou um erro crítico com o arquivo da lista."
+		"chi"		"{red}插件在处理列表文件时遇到严重错误。"
+	}
+	"Remove Usage"
+	{
+		"en"		"{default}Invalid syntax: sm_removefromlist <steam id>"
+		"fr"		"{default}Syntaxe invalide : sm_removefromlist <steam id>"
+		"ru"		"{default}Неверный синтаксис: sm_removefromlist <steam id>"
+		"es"		"{default}Sintaxis no válida: sm_removefromlist <steam id>"
+		"de"		"{default}Ungültige Syntax: sm_removefromlist <steam id>"
+		"pt"		"{default}Sintaxe inválida: sm_removefromlist <steam id>"
+		"chi"		"{default}语法错误：sm_removefromlist <steam id>"
+	}
+	"Removing SteamID"
+	{
+		"#format"	"{1:s}"
+		"en"		"{default}Found Steam ID: {lightgreen}{1}{default}, removing from list..."
+		"fr"		"{default}Steam ID trouvé : {lightgreen}{1}{default}, suppression de la liste..."
+		"ru"		"{default}Найден Steam ID: {lightgreen}{1}{default}, удаление из списка..."
+		"es"		"{default}Steam ID encontrado: {lightgreen}{1}{default}, eliminándolo de la lista..."
+		"de"		"{default}Steam ID gefunden: {lightgreen}{1}{default}, wird aus der Liste entfernt..."
+		"pt"		"{default}Steam ID encontrado: {lightgreen}{1}{default}, removendo da lista..."
+		"chi"		"{default}找到 Steam ID：{lightgreen}{1}{default}，正在从列表中移除……"
+	}
+	"SteamID Not Found"
+	{
+		"#format"	"{1:s}"
+		"en"		"{default}Steam ID: {lightgreen}{1} {default}not found, no action taken."
+		"fr"		"{default}Steam ID {lightgreen}{1} {default}introuvable, aucune action effectuée."
+		"ru"		"{default}Steam ID {lightgreen}{1} {default}не найден, никаких действий не выполнено."
+		"es"		"{default}Steam ID {lightgreen}{1} {default}no encontrado, no se realizó ninguna acción."
+		"de"		"{default}Steam ID {lightgreen}{1} {default}nicht gefunden, keine Aktion durchgeführt."
+		"pt"		"{default}Steam ID {lightgreen}{1} {default}não encontrado, nenhuma ação realizada."
+		"chi"		"{default}未找到 Steam ID {lightgreen}{1}{default}，未执行任何操作。"
+	}
+	"Players Menu Title"
+	{
+		"en"		"Viewing all players..."
+		"fr"		"Liste de tous les joueurs..."
+		"ru"		"Список всех игроков..."
+		"es"		"Viendo todos los jugadores..."
+		"de"		"Alle Spieler werden angezeigt..."
+		"pt"		"Visualizando todos os jogadores..."
+		"chi"		"查看所有玩家……"
+	}
+	"Displaying Players Menu"
+	{
+		"en"		"{default}Displaying players menu..."
+		"fr"		"{default}Affichage du menu des joueurs..."
+		"ru"		"{default}Открытие меню игроков..."
+		"es"		"{default}Mostrando el menú de jugadores..."
+		"de"		"{default}Spielermenü wird angezeigt..."
+		"pt"		"{default}Exibindo o menu de jogadores..."
+		"chi"		"{default}正在显示玩家菜单……"
+	}
+	"Invalid SteamID"
+	{
+		"en"		"{default}Invalid input - not a Steam 2 ID. (STEAM_0:X:XXXX)"
+		"fr"		"{default}Entrée invalide - ce n'est pas un Steam ID 2. (STEAM_0:X:XXXX)"
+		"ru"		"{default}Неверный ввод - это не Steam ID 2. (STEAM_0:X:XXXX)"
+		"es"		"{default}Entrada no válida - no es un Steam ID 2. (STEAM_0:X:XXXX)"
+		"de"		"{default}Ungültige Eingabe - keine Steam-2-ID. (STEAM_0:X:XXXX)"
+		"pt"		"{default}Entrada inválida - não é um Steam ID 2. (STEAM_0:X:XXXX)"
+		"chi"		"{default}输入无效 - 不是 Steam 2 ID。（STEAM_0:X:XXXX）"
+	}
+	"Added SteamID"
+	{
+		"#format"	"{1:s}"
+		"en"		"{default}Successfully added {lightgreen}{1} {default}to the list."
+		"fr"		"{lightgreen}{1} {default}a été ajouté à la liste avec succès."
+		"ru"		"{lightgreen}{1} {default}успешно добавлен в список."
+		"es"		"{lightgreen}{1} {default}se añadió correctamente a la lista."
+		"de"		"{lightgreen}{1} {default}wurde erfolgreich zur Liste hinzugefügt."
+		"pt"		"{lightgreen}{1} {default}foi adicionado à lista com sucesso."
+		"chi"		"{default}已成功将 {lightgreen}{1} {default}添加到列表。"
+	}
+	"Added Player"
+	{
+		"#format"	"{1:s},{2:N}"
+		"en"		"{default}Successfully added {lightgreen}{1} {default}({olive}{2}{default}) to the list."
+		"fr"		"{lightgreen}{1} {default}({olive}{2}{default}) a été ajouté à la liste avec succès."
+		"ru"		"{lightgreen}{1} {default}({olive}{2}{default}) успешно добавлен в список."
+		"es"		"{lightgreen}{1} {default}({olive}{2}{default}) se añadió correctamente a la lista."
+		"de"		"{lightgreen}{1} {default}({olive}{2}{default}) wurde erfolgreich zur Liste hinzugefügt."
+		"pt"		"{lightgreen}{1} {default}({olive}{2}{default}) foi adicionado à lista com sucesso."
+		"chi"		"{default}已成功将 {lightgreen}{1} {default}（{olive}{2}{default}）添加到列表。"
+	}
+	"Rebuilding Whitelist"
+	{
+		"en"		"Rebuilding whitelist..."
+		"fr"		"Reconstruction de la whitelist..."
+		"ru"		"Перестроение белого списка..."
+		"es"		"Reconstruyendo la lista blanca..."
+		"de"		"Whitelist wird neu aufgebaut..."
+		"pt"		"Reconstruindo a whitelist..."
+		"chi"		"正在重建白名单……"
+	}
+	"Rebuild Complete"
+	{
+		"en"		"{default}Rebuild complete!"
+		"fr"		"{default}Reconstruction terminée !"
+		"ru"		"{default}Перестроение завершено!"
+		"es"		"{default}¡Reconstrucción completada!"
+		"de"		"{default}Neuaufbau abgeschlossen!"
+		"pt"		"{default}Reconstrução concluída!"
+		"chi"		"{default}重建完成！"
+	}
+}
