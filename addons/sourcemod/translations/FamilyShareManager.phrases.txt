@@ -20,6 +20,16 @@
 		"pt"		"{default}Sintaxe inválida: sm_removefromlist <steam id>"
 		"chi"		"{default}语法错误：sm_removefromlist <steam id>"
 	}
+	"Add Usage"
+	{
+		"en"		"{default}Invalid syntax: sm_addtolist <steam id>"
+		"fr"		"{default}Syntaxe invalide : sm_addtolist <steam id>"
+		"ru"		"{default}Неверный синтаксис: sm_addtolist <steam id>"
+		"es"		"{default}Sintaxis no válida: sm_addtolist <steam id>"
+		"de"		"{default}Ungültige Syntax: sm_addtolist <steam id>"
+		"pt"		"{default}Sintaxe inválida: sm_addtolist <steam id>"
+		"chi"		"{default}语法错误：sm_addtolist <steam id>"
+	}
 	"Removing SteamID"
 	{
 		"#format"	"{1:s}"

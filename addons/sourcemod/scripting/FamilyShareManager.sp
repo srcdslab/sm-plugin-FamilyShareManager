@@ -36,7 +36,7 @@ public Plugin myinfo =
     name = "Family Share Manager",
     author = "Sidezz (+bonbon, 11530, maxime1907, .Rushaway)",
     description = "Whitelist or ban family shared accounts",
-    version = "1.8.5",
+    version = "1.8.6",
     url = ""
 }
 
@@ -128,14 +128,15 @@ public Action command_removeFromList(int client, int args)
     if(hFile == null)
     {
         LogError("[Family Share Manager] Critical Error: hFile is Invalid. --> command_removeFromList");
-        CPrintToChat(client, "%s %t", TAG, "List File Error");
+        CReplyToCommand(client, "%s %t", TAG, "List File Error");
         delete hFile;
         return Plugin_Handled;
     }
 
     if(args == 0)
     {
-        CPrintToChat(client, "%s %t", TAG, "Remove Usage");
+        CReplyToCommand(client, "%s %t", TAG, "Remove Usage");
+        delete hFile;
         return Plugin_Handled;
     }
 
@@ -154,7 +155,7 @@ public Action command_removeFromList(int client, int args)
 
         ReplaceString(steamid, sizeof(steamid), "\n", "", false);
 
-        CPrintToChat(client, "{lightgreen}%s {default}- {olive}%s", steamid, playerSteam);
+        CReplyToCommand(client, "{lightgreen}%s {default}- {olive}%s", steamid, playerSteam);
         //Not found, add to next file.
         if(!StrEqual(steamid, playerSteam, false))
         {
@@ -179,11 +180,12 @@ public Action command_removeFromList(int client, int args)
         if(newFile == null)
         {
             LogError("[Family Share Manager] Critical Error: newFile is Invalid. --> command_removeFromList");
-            CPrintToChat(client, "%s %t", TAG, "List File Error");
+            CReplyToCommand(client, "%s %t", TAG, "List File Error");
+            delete fileArray;
             return Plugin_Handled;
         }
 
-        CPrintToChat(client, "%s %t", TAG, "Removing SteamID", playerSteam);
+        CReplyToCommand(client, "%s %t", TAG, "Removing SteamID", playerSteam);
         
         LogMessage("Begin rewrite of list..");
 
@@ -200,7 +202,9 @@ public Action command_removeFromList(int client, int args)
         parseList();
         return Plugin_Handled;
     }
-    else CPrintToChat(client, "%s %t", TAG, "SteamID Not Found", playerSteam);
+    else CReplyToCommand(client, "%s %t", TAG, "SteamID Not Found", playerSteam);
+
+    delete fileArray;
     return Plugin_Handled;
 }
 
@@ -214,6 +218,13 @@ public Action command_addToList(int client, int args)
         //Create Player List:
         case 0:
         {
+            if(!client)
+            {
+                CReplyToCommand(client, "%s %t", TAG, "Add Usage");
+                delete hFile;
+                return Plugin_Handled;
+            }
+
             Menu playersMenu = new Menu(playerMenuHandle);
             for(int i = 1; i <= MaxClients; i++)
             {
@@ -234,7 +245,7 @@ public Action command_addToList(int client, int args)
             playersMenu.Pagination = 7;
             playersMenu.Display(client, MENU_TIME_FOREVER);
 
-            CPrintToChat(client, "%s %t", TAG, "Displaying Players Menu");
+            CReplyToCommand(client, "%s %t", TAG, "Displaying Players Menu");
 
             delete hFile;
             return Plugin_Handled;
@@ -251,7 +262,7 @@ public Action command_addToList(int client, int args)
 
             if(StrContains(steamid, "STEAM_", false) == -1)
             {
-                CPrintToChat(client, "%s %t", TAG, "Invalid SteamID");
+                CReplyToCommand(client, "%s %t", TAG, "Invalid SteamID");
                 delete hFile;
                 return Plugin_Handled;
             }
@@ -259,13 +270,13 @@ public Action command_addToList(int client, int args)
             if(hFile == null)
             {
                 LogError("[Family Share Manager] Critical Error: hFile is Invalid. --> command_addToList");
-                CPrintToChat(client, "%s %t", TAG, "List File Error");
+                CReplyToCommand(client, "%s %t", TAG, "List File Error");
                 delete hFile;
                 return Plugin_Handled;
             }
 
             hFile.WriteLine(steamid);
-            CPrintToChat(client, "%s %t", TAG, "Added SteamID", steamid);
+            CReplyToCommand(client, "%s %t", TAG, "Added SteamID", steamid);
             delete hFile;
             parseList();
         }
@@ -288,7 +299,6 @@ public int playerMenuHandle(Menu playerMenu, MenuAction action, int client, int 
         if(target == 0)
         {
             LogError("[Family Share Manager] Critical Error: Invalid Client of User Id --> playerMenuHandle");
-            delete playerMenu;
             return 0;
         }
 
@@ -343,8 +353,7 @@ public Action command_displayList(int client, int args)
 
         if(StrContains(auth, "STEAM_", false) != -1)
         {
-            if(!client) return Plugin_Handled;
-            PrintToChat(client, "%s", auth); 
+            ReplyToCommand(client, "%s", auth);
         }
     }
 
@@ -354,7 +363,7 @@ public Action command_displayList(int client, int args)
 
 public Action command_reloadWhiteList(int client, int args)
 {
-    CPrintToChat(client, "%s %t", TAG, "Rebuilding Whitelist");
+    CReplyToCommand(client, "%s %t", TAG, "Rebuilding Whitelist");
     parseList(true, client);
     return Plugin_Handled;
 }
@@ -378,8 +387,8 @@ stock void parseList(bool rebuild = false, int client = 0)
         }
     }
 
-    if (rebuild && client)
-        CPrintToChat(client, "%s %t", TAG, "Rebuild Complete");
+    if (rebuild)
+        CReplyToCommand(client, "%s %t", TAG, "Rebuild Complete");
 
     g_bParsed = true;
     delete hFile;
@@ -502,7 +511,7 @@ stock void ApplyPunishement(int client)
         case (1):
         {
             LogAction(-1, -1, "Kicking %L (Family share)", client);
-            KickClient(client, rejectMessage);
+            KickClient(client, "%s", rejectMessage);
         }
     }
 }
